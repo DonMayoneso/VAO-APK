@@ -221,12 +221,12 @@ const app = {
     ],
 
     config: { 
-        tickRate: 3000, baseDamage: 2.0, societyDrainBase: 1.8, healCost: 15, healAmount: 20, // Drenaje alto
+        tickRate: 1000, baseDamage: 2.0, societyDrainBase: 1.8, healCost: 15, healAmount: 20, // Drenaje alto
         feedCostSmall: 50, feedCostBig: 200, boostDuration: 5, boostMultProd: 2, boostMultDmg: 3, oldFarmPenalty: 0.4
     },
 
     state: { 
-        water: 3000, // Inicio 1000
+        water: 1000, // Inicio 1000
         units: [], unlockedTier: 4, societyHealth: 100, isGameOver: false, storyViewed: false, societyHistory: []
     },
     
@@ -389,7 +389,7 @@ const app = {
     executeReset: function() { sfx.error(); gameManager.clearProgress(); localStorage.clear(); window.location.href = "../index.html"; },
     triggerGameOver: function() { this.state.isGameOver = true; sfx.error(); document.getElementById('game-over-modal').classList.remove('hidden'); },
     saveGame: function() { gameManager.saveProgress(this.state); },
-    loadGame: function() { let d = gameManager.loadProgress(); if(d) { this.state = { ...this.state, ...d }; if(this.state.water < 300) this.state.water = 3000; } else { this.state.water = 3000; this.state.unlockedTier = 4; } },
+    loadGame: function() { let d = gameManager.loadProgress(); if(d) { this.state = { ...this.state, ...d }; if(this.state.water < 300) this.state.water = 1000; } else { this.state.water = 1000; this.state.unlockedTier = 4; } },
     hardReset: function() { gameManager.clearProgress(); location.reload(); },
     renderAll: function() { this.updateUI(); this.renderFarms(); this.renderMapInfo(); this.renderUnits(); }
 };
