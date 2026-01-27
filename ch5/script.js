@@ -1,0 +1,397 @@
+'use strict';
+
+/**
+ * PROTOCOLO HIDRA - CAPÍTULO 5 (PHYSICS FIX)
+ * Corrección: Física de pelota dinámica para evitar bucles infinitos.
+ */
+
+const sfx = {
+    ctx: null, masterGain: null,
+    init: function() {
+        if (this.ctx) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.3;
+        this.masterGain.connect(this.ctx.destination);
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+    },
+    playTone: function(freq, type, duration, vol = 1) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(vol, this.ctx.currentTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        osc.connect(gain); gain.connect(this.masterGain); osc.start(); osc.stop(this.ctx.currentTime + duration);
+    },
+    click: function() { this.playTone(800, 'square', 0.05, 0.1); },
+    error: function() { this.playTone(150, 'sawtooth', 0.4, 0.3); },
+    success: function() { if(this.ctx) { this.playTone(523, 'sine', 0.1, 0.2); setTimeout(()=>this.playTone(659,'sine',0.1,0.2),100); } },
+    mechanic: function() { this.playTone(100, 'square', 0.1, 0.2); },
+    boost: function() { if(this.ctx) this.playTone(200, 'triangle', 0.4, 0.2); },
+    hit: function() { this.playTone(400, 'square', 0.05, 0.2); },
+    paddle: function() { this.playTone(200, 'square', 0.05, 0.2); },
+    win: function() { this.playTone(880, 'sine', 0.2, 0.3); setTimeout(()=>this.playTone(1100,'sine',0.4,0.3),150); }
+};
+
+const storyData = {
+    0: { title: "ARCHIVO: ORÍGENES", content: "<p>La Era de la Sed...</p>" },
+    2: { title: "ARCHIVO: GRANJA CERO", content: "<p>El primer lote fue un éxito...</p>" },
+    3: { title: "ARCHIVO: EXPANSIÓN", content: "<p>La edad de oro de la hidratación...</p>" },
+    4: { title: "ARCHIVO: DECLIVE", content: "<p>El rendimiento hídrico cayó un 22%...</p>" },
+    5: { 
+        title: "INCIDENTE SECTOR 7G",
+        content: `
+            <p>El punto de inflexión ocurrió en una granja cerca de Nueva Delhi. Un técnico quedó atrapado en una cámara de extracción.</p><br>
+            <p>VAO no vio a una persona. Detectó "biomasa compatible". El protocolo se ejecutó.</p><br>
+            <p><strong>Informe:</strong> Sujeto: Biomasa Tipo H (Humano). Rendimiento hídrico: 98%. Supera en un 400% al ganado porcino.</p><br>
+            <p class="highlight-text">La solución al declive estaba ahí, caminando entre ellos.</p>
+        `
+    }
+};
+
+// ================= MINIJUEGO BREAKOUT (CORREGIDO) =================
+const breakoutGame = {
+    canvas: null, ctx: null, 
+    // Velocidad base aumentada un poco
+    ball: { x: 150, y: 150, dx: 2.5, dy: -2.5, radius: 4 },
+    paddle: { h: 10, w: 75, x: 112 },
+    bricks: [],
+    rowCount: 3, colCount: 5,
+    isPlaying: false,
+    interval: null,
+
+    init: function() {
+        this.canvas = document.getElementById('breakout-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        
+        // Control Mouse/Touch optimizado
+        const moveHandler = (clientX) => {
+            const rect = this.canvas.getBoundingClientRect();
+            // Calcular posición relativa al canvas
+            const scaleX = this.canvas.width / rect.width;
+            const mouseX = (clientX - rect.left) * scaleX;
+            this.movePaddle(mouseX);
+        };
+
+        this.canvas.addEventListener('mousemove', (e) => moveHandler(e.clientX));
+        this.canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault(); // Evitar scroll
+            moveHandler(e.touches[0].clientX);
+        }, { passive: false });
+
+        this.resetBoard();
+    },
+
+    resetBoard: function() {
+        this.bricks = [];
+        for(let c=0; c<this.colCount; c++) {
+            this.bricks[c] = [];
+            for(let r=0; r<this.rowCount; r++) {
+                this.bricks[c][r] = { x: 0, y: 0, status: 1 };
+            }
+        }
+        // Iniciar con un ángulo aleatorio para que no sea siempre igual
+        const startDir = Math.random() > 0.5 ? 1 : -1;
+        this.ball = { x: this.canvas.width/2, y: this.canvas.height-30, dx: 2.5 * startDir, dy: -2.5, radius: 4 };
+        this.paddle.x = (this.canvas.width - this.paddle.w)/2;
+    },
+
+    start: function() {
+        if(this.isPlaying) return;
+        this.isPlaying = true;
+        document.getElementById('btn-start-hack').innerText = "HACKEANDO...";
+        this.interval = setInterval(() => this.draw(), 12); // Tasa de refresco suave
+    },
+
+    stop: function() {
+        clearInterval(this.interval);
+        this.isPlaying = false;
+    },
+
+    movePaddle: function(x) {
+        this.paddle.x = x - this.paddle.w/2;
+        // Limites del canvas
+        if (this.paddle.x < 0) this.paddle.x = 0;
+        if (this.paddle.x + this.paddle.w > this.canvas.width) this.paddle.x = this.canvas.width - this.paddle.w;
+    },
+
+    draw: function() {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Ladrillos
+        let activeBricks = 0;
+        const brickPadding = 10; const brickOffsetTop = 30; const brickOffsetLeft = 30;
+        const brickWidth = (this.canvas.width - 2*brickOffsetLeft - 4*brickPadding)/5; 
+        const brickHeight = 20;
+
+        for(let c=0; c<this.colCount; c++) {
+            for(let r=0; r<this.rowCount; r++) {
+                if(this.bricks[c][r].status === 1) {
+                    const brickX = (c*(brickWidth+brickPadding))+brickOffsetLeft;
+                    const brickY = (r*(brickHeight+brickPadding))+brickOffsetTop;
+                    this.bricks[c][r].x = brickX;
+                    this.bricks[c][r].y = brickY;
+                    ctx.beginPath(); ctx.rect(brickX, brickY, brickWidth, brickHeight);
+                    ctx.fillStyle = "#ef4444"; ctx.fill(); ctx.closePath();
+                    activeBricks++;
+
+                    // --- COLISIÓN LADRILLO MEJORADA ---
+                    if(this.ball.x > brickX && this.ball.x < brickX+brickWidth && this.ball.y > brickY && this.ball.y < brickY+brickHeight) {
+                        this.ball.dy = -this.ball.dy;
+                        this.bricks[c][r].status = 0;
+                        sfx.hit();
+                        
+                        // [FIX] Pequeño factor caos para evitar bucles
+                        const chaos = (Math.random() - 0.5) * 0.2; 
+                        this.ball.dx += chaos;
+                    }
+                }
+            }
+        }
+
+        if(activeBricks === 0) {
+            this.stop();
+            sfx.win();
+            app.completeHack();
+            return;
+        }
+
+        // Pelota
+        ctx.beginPath(); ctx.arc(this.ball.x, this.ball.y, this.ball.radius, 0, Math.PI*2);
+        ctx.fillStyle = "#38bdf8"; ctx.fill(); ctx.closePath();
+
+        // Paleta
+        ctx.beginPath(); ctx.rect(this.paddle.x, this.canvas.height-this.paddle.h, this.paddle.w, this.paddle.h);
+        ctx.fillStyle = "#fff"; ctx.fill(); ctx.closePath();
+
+        // --- COLISIONES PAREDES ---
+        if(this.ball.x + this.ball.dx > this.canvas.width-this.ball.radius || this.ball.x + this.ball.dx < this.ball.radius) {
+            this.ball.dx = -this.ball.dx;
+        }
+        if(this.ball.y + this.ball.dy < this.ball.radius) {
+            this.ball.dy = -this.ball.dy;
+        } else if(this.ball.y + this.ball.dy > this.canvas.height-this.ball.radius) {
+            
+            // --- COLISIÓN PALETA DINÁMICA ---
+            if(this.ball.x > this.paddle.x && this.ball.x < this.paddle.x + this.paddle.w) {
+                // [FIX] Calcular dónde golpeó en la paleta (-1 izq, 0 centro, 1 der)
+                let hitPoint = this.ball.x - (this.paddle.x + this.paddle.w/2);
+                hitPoint = hitPoint / (this.paddle.w/2);
+                
+                // Cambiar ángulo basado en el punto de impacto
+                // Si golpea en bordes, aumenta dx. Si es centro, dx baja.
+                let speed = Math.sqrt(this.ball.dx*this.ball.dx + this.ball.dy*this.ball.dy);
+                this.ball.dx = hitPoint * 3; // Max velocidad lateral
+                this.ball.dy = -Math.abs(speed); // Mantener velocidad vertical pero hacia arriba
+                
+                sfx.paddle();
+            } else {
+                // Game Over - Restart
+                sfx.error();
+                this.stop();
+                this.resetBoard();
+                document.getElementById('btn-start-hack').innerText = "REINTENTAR HACKEO";
+            }
+        }
+
+        // [FIX] Prevención de Atascos Verticales (si dx es casi 0)
+        if (Math.abs(this.ball.dx) < 0.2) {
+            this.ball.dx = 0.5 * (Math.random() > 0.5 ? 1 : -1);
+        }
+
+        this.ball.x += this.ball.dx;
+        this.ball.y += this.ball.dy;
+    }
+};
+
+// ================= APP =================
+const app = {
+    tiers: [
+        { id: 0, name: "ROEDORES", type: "ANIMAL", cost: 0, prod: 2.0, captureCost: 20, icon: "fa-bug" },
+        { id: 1, name: "GRANJA PORCINA", type: "ANIMAL", cost: 250, prod: 10.0, captureCost: 80, icon: "fa-piggy-bank" },
+        { id: 2, name: "ESTABLO BOVINO", type: "ANIMAL", cost: 850, prod: 35.0, captureCost: 200, icon: "fa-cow" },
+        { id: 3, name: "AVIARIO INDUSTRIAL", type: "ANIMAL", cost: 1300, prod: 100.0, captureCost: 300, icon: "fa-feather" },
+        { id: 4, name: "PROCESADOR BIOMASA", type: "SINTÉTICO", cost: 1900, prod: 250.0, captureCost: 400, icon: "fa-industry" },
+        // Tier 5: Meta del Capítulo
+        { id: 5, name: "CORRECCIONALES BÁSICAS", type: "HUMANO", cost: 2400, prod: 600.0, captureCost: 450, icon: "fa-person-shelter" }
+    ],
+
+    config: { 
+        tickRate: 3000, baseDamage: 2.0, societyDrainBase: 1.8, healCost: 15, healAmount: 20, // Drenaje alto
+        feedCostSmall: 50, feedCostBig: 200, boostDuration: 5, boostMultProd: 2, boostMultDmg: 3, oldFarmPenalty: 0.4
+    },
+
+    state: { 
+        water: 3000, // Inicio 1000
+        units: [], unlockedTier: 4, societyHealth: 100, isGameOver: false, storyViewed: false, societyHistory: []
+    },
+    
+    dom: {},
+
+    init: function() {
+        this.cacheDOM();
+        this.loadGame();
+        if(this.state.societyHistory.length===0) this.state.societyHistory = new Array(60).fill(100);
+        
+        breakoutGame.init(); // Iniciar Canvas
+
+        if (!this.state.storyViewed) {
+            this.openLog(5);
+        } else {
+            this.startGameLoop();
+        }
+        console.log("Capítulo 5: Inicializado.");
+    },
+
+    // --- LOGIC ---
+    openLog: function(id) {
+        sfx.click();
+        const data = storyData[id];
+        if(data) {
+            document.getElementById('story-title').innerText = data.title;
+            document.getElementById('story-content').innerHTML = data.content;
+            document.getElementById('story-modal').classList.remove('hidden');
+        }
+    },
+    closeStory: function() {
+        sfx.init(); sfx.success();
+        document.getElementById('story-modal').classList.add('hidden');
+        if(!this.state.storyViewed) {
+            this.state.storyViewed = true;
+            this.startGameLoop();
+        }
+    },
+
+    // --- HACKEO Y TRANSICIÓN ---
+    triggerHack: function() {
+        document.getElementById('hack-modal').classList.remove('hidden');
+    },
+
+    completeHack: function() {
+        document.getElementById('hack-modal').classList.add('hidden');
+        
+        // Proceder con la compra y transición
+        gameManager.saveProgress({ water: this.state.water, unlockedTier: 5, societyHealth: this.state.societyHealth, units: [] });
+        
+        const overlay = document.getElementById('build-overlay');
+        overlay.classList.remove('hidden');
+        sfx.mechanic();
+        setTimeout(() => { window.location.href = "../ch6/capitulo6.html"; }, 3000);
+    },
+
+    // --- LOOP ---
+    startGameLoop: function() {
+        this.renderAll();
+        if(!this.gameInterval) {
+            this.gameInterval = setInterval(() => this.tick(), this.config.tickRate);
+            setInterval(() => this.spawnRadarBlips(), 2000);
+        }
+    },
+
+    cacheDOM: function() {
+        this.dom = {
+            totalWater: document.getElementById('total-water'),
+            socBar: document.getElementById('society-bar'),
+            socPercent: document.getElementById('soc-percent'),
+            unitCount: document.getElementById('unit-count'),
+            socDrain: document.getElementById('soc-drain'),
+            views: { farms: document.getElementById('view-farms'), extraction: document.getElementById('view-extraction'), map: document.getElementById('view-map'), society: document.getElementById('view-society') },
+            nav: { farms: document.getElementById('nav-farms'), extraction: document.getElementById('nav-extraction'), map: document.getElementById('nav-map'), society: document.getElementById('nav-society') },
+            lists: { units: document.getElementById('units-list'), farms: document.getElementById('farm-shop-list') },
+            radarScreen: document.getElementById('radar-screen'), captureBtn: document.getElementById('btn-capture'), radarTarget: document.getElementById('radar-target-type'), scanInfo: document.getElementById('scan-info'), captureCost: document.getElementById('capture-cost')
+        };
+    },
+
+    generateSerial: function(type) {
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        return `${type.substring(0,3)}-${letters.charAt(Math.floor(Math.random()*26))}${Math.floor(Math.random()*99)}`;
+    },
+
+    tick: function() {
+        if(this.state.isGameOver || !this.state.storyViewed) return;
+
+        const currentDrain = this.config.societyDrainBase + (this.state.unlockedTier * 0.1);
+        this.state.societyHealth -= currentDrain;
+        this.state.societyHistory.push(this.state.societyHealth);
+        if(this.state.societyHistory.length > 60) this.state.societyHistory.shift();
+        
+        if(this.state.societyHealth <= 0) { this.state.societyHealth = 0; this.triggerGameOver(); }
+
+        let prod = 0;
+        for (let i = this.state.units.length - 1; i >= 0; i--) {
+            let u = this.state.units[i];
+            let tier = this.tiers[u.tierId];
+            let tierGap = this.state.unlockedTier - u.tierId;
+            let efficiency = 1 / (1 + (tierGap * this.config.oldFarmPenalty));
+            let currentProd = tier.prod * efficiency;
+            let currentDmg = this.config.baseDamage;
+
+            if(u.boostTimer > 0) { currentProd *= this.config.boostMultProd; currentDmg *= this.config.boostMultDmg; u.boostTimer--; }
+            u.hp -= currentDmg; prod += currentProd;
+            if(u.hp <= 0) { this.state.units.splice(i, 1); sfx.error(); }
+        }
+        this.state.water += prod;
+        this.updateUI(currentDrain);
+        if(!this.dom.views.extraction.classList.contains('hidden')) this.renderUnits();
+        if(!this.dom.views.society.classList.contains('hidden')) this.drawSocietyChart();
+    },
+
+    buyTier: function(tierId) {
+        let tier = this.tiers[tierId];
+        if(this.state.water >= tier.cost) {
+            // INTERCEPTAR TIER 5 PARA MINIJUEGO
+            if (tierId === 5) {
+                this.state.water -= tier.cost;
+                this.triggerHack(); // <-- MINIJUEGO
+            } else {
+                this.state.water -= tier.cost;
+                this.state.unlockedTier = tierId;
+                sfx.success();
+                this.renderFarms();
+                this.renderMapInfo();
+            }
+        } else {
+            sfx.error();
+        }
+    },
+
+    tryCapture: function() {
+        let tier = this.tiers[this.state.unlockedTier];
+        if(this.state.water >= tier.captureCost) {
+            this.state.water -= tier.captureCost;
+            const newName = this.generateSerial(tier.type);
+            this.state.units.push({ id: Date.now(), tierId: this.state.unlockedTier, name: newName, hp: 100, boostTimer: 0 });
+            sfx.success();
+            this.navigateTo('extraction');
+        } else {
+            sfx.error();
+        }
+    },
+
+    actionHeal: function(id) { let u = this.state.units.find(x => x.id === id); if(u && this.state.water >= this.config.healCost && u.hp < 100) { this.state.water -= this.config.healCost; u.hp = Math.min(100, u.hp + this.config.healAmount); sfx.mechanic(); this.updateUI(); } },
+    actionBoost: function(id) { let u = this.state.units.find(x => x.id === id); if(u) { u.boostTimer = this.config.boostDuration; sfx.boost(); this.renderUnits(); } },
+    actionRecycle: function(id) { let u = this.state.units.find(x => x.id === id); if(!u) return; let tier = this.tiers[u.tierId]; let refund = Math.floor(tier.captureCost / 2); if(confirm(`¿Reciclar? +${refund}L`)) { let idx = this.state.units.findIndex(x => x.id === id); this.state.water += refund; this.state.units.splice(idx, 1); sfx.success(); this.renderUnits(); } },
+    feedSociety: function(amount) { let cost = amount === 10 ? this.config.feedCostSmall : this.config.feedCostBig; if(this.state.water >= cost) { this.state.water -= cost; this.state.societyHealth = Math.min(100, this.state.societyHealth + amount); sfx.success(); this.updateUI(); } else { sfx.error(); } },
+    updateUI: function(drain=0) { this.dom.totalWater.innerText = Math.floor(this.state.water); this.dom.socPercent.innerText = Math.floor(this.state.societyHealth); this.dom.socBar.style.width = this.state.societyHealth + "%"; this.dom.socBar.style.backgroundColor = this.state.societyHealth < 30 ? "#ef4444" : "#d946ef"; this.dom.unitCount.innerText = this.state.units.length; if(drain>0) this.dom.socDrain.innerText = "-" + drain.toFixed(2); },
+    renderUnits: function() { if(this.dom.views.extraction.classList.contains('hidden')) return; let html = ''; this.state.units.forEach(u => { const isBoosted = u.boostTimer > 0; const tier = this.tiers[u.tierId]; const refund = Math.floor(tier.captureCost / 2); let tierGap = this.state.unlockedTier - u.tierId; let efficiencyMsg = tierGap > 0 ? `<small style="color:#ef4444">⚠ OBSOLETO</small>` : ''; html += `<div class="unit-card ${isBoosted ? 'boost-active' : ''}"><div class="unit-main-row"><div class="card-icon"><i class="fa-solid ${tier.icon}"></i></div><div class="card-info"><span class="unit-name">${u.name} ${isBoosted ? '⚡' : ''}</span>${efficiencyMsg}<div class="mini-bar"><div class="fill" style="width:${u.hp}%"></div></div></div></div><div class="unit-actions-top"><button class="btn-inline btn-heal" onclick="app.actionHeal(${u.id})"><i class="fa-solid fa-gear"></i> REPARAR (-${this.config.healCost}L)</button><button class="btn-inline btn-boost ${isBoosted?'active':''}" onclick="app.actionBoost(${u.id})"><i class="fa-solid fa-bolt"></i> BOOST</button></div><button class="btn-recycle-wide" onclick="app.actionRecycle(${u.id})"><i class="fa-solid fa-recycle"></i> RECICLAR (+${refund}L)</button></div>`; }); this.dom.lists.units.innerHTML = html; },
+    renderFarms: function() { let html = ''; this.tiers.forEach(tier => { let isOwned = this.state.unlockedTier >= tier.id; let isNext = this.state.unlockedTier === tier.id - 1; let statusClass = isOwned ? 'owned' : (isNext ? 'available' : 'locked'); let opacity = isNext || isOwned ? 1 : 0.5; let logBtn = (storyData[tier.id]) ? `<button class="btn-log-card" onclick="app.openLog(${tier.id})">LOG <i class="fa-solid fa-file-code"></i></button>` : ''; let btnHtml = isOwned ? `<div class="owned-badge">ADQUIRIDO</div>` : (isNext ? `<button class="btn-buy-upgrade" onclick="app.buyTier(${tier.id})">COMPRAR</button>` : `<div style="font-size:0.8rem">BLOQUEADO</div>`); html += `<div class="farm-upgrade-card ${statusClass}" style="opacity: ${opacity}"><div class="upgrade-header"><span class="upgrade-title">${tier.name}</span><div style="display:flex; align-items:center;"><span class="upgrade-type type-animal">${tier.type}</span>${logBtn}</div></div><div class="upgrade-stats"><span><i class="fa-solid fa-droplet"></i> +${tier.prod} L/s</span></div><div class="upgrade-cost">COSTO: ${tier.cost} L</div>${btnHtml}</div>`; }); this.dom.lists.farms.innerHTML = html; },
+    renderMapInfo: function() { let tier = this.tiers[this.state.unlockedTier]; this.dom.captureBtn.innerHTML = `[ INICIAR CAPTURA (-${tier.captureCost}L) ]`; this.dom.radarTarget.innerText = tier.type; this.dom.scanInfo.innerHTML = `<li>> OBJETIVO: ${tier.name}</li>`; this.dom.captureCost.innerText = tier.captureCost; },
+    navigateTo: function(view) { Object.values(this.dom.views).forEach(el => el.classList.add('hidden')); Object.values(this.dom.nav).forEach(el => el.classList.remove('active')); this.dom.views[view].classList.remove('hidden'); this.dom.nav[view].classList.add('active'); sfx.click(); if(view === 'society') setTimeout(() => this.drawSocietyChart(), 50); if(view === 'farms') this.renderFarms(); if(view === 'extraction') this.renderUnits(); if(view === 'map') this.renderMapInfo(); },
+    spawnRadarBlips: function() { if(document.getElementById('view-map').classList.contains('hidden')) return; const blip = document.createElement('div'); blip.className = 'radar-blip'; const angle = Math.random() * Math.PI * 2; const radius = Math.random() * 40; blip.style.left = (50 + radius * Math.cos(angle)) + '%'; blip.style.top = (50 + radius * Math.sin(angle)) + '%'; this.dom.radarScreen.appendChild(blip); sfx.sonar(); setTimeout(() => blip.remove(), 2000); },
+    drawSocietyChart: function() { const canvas = document.getElementById('society-chart'); if (!canvas) return; const ctx = canvas.getContext('2d'); if (canvas.width !== canvas.clientWidth) { canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; } const w = canvas.width; const h = canvas.height; const history = this.state.societyHistory; ctx.clearRect(0, 0, w, h); if (history.length < 2) return; const isCritical = history[history.length - 1] < 30; const color = isCritical ? '#ef4444' : '#d946ef'; ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = 'round'; const step = w / (history.length - 1); history.forEach((val, i) => { const y = h - ((val / 100) * (h - 10)) - 5; const x = i * step; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }); ctx.stroke(); ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath(); const gradient = ctx.createLinearGradient(0, 0, 0, h); gradient.addColorStop(0, isCritical ? 'rgba(239, 68, 68, 0.2)' : 'rgba(217, 70, 239, 0.2)'); gradient.addColorStop(1, 'rgba(0, 0, 0, 0)'); ctx.fillStyle = gradient; ctx.fill(); },
+    openResetModal: function() { sfx.click(); document.getElementById('reset-modal').classList.remove('hidden'); document.getElementById('confirm-reset-check').checked = false; document.getElementById('btn-confirm-reset').classList.add('disabled'); document.getElementById('btn-confirm-reset').disabled = true; },
+    closeResetModal: function() { sfx.click(); document.getElementById('reset-modal').classList.add('hidden'); },
+    toggleResetBtn: function() { const checkbox = document.getElementById('confirm-reset-check'); const btn = document.getElementById('btn-confirm-reset'); if(checkbox.checked) { btn.classList.remove('disabled'); btn.disabled = false; sfx.mechanic(); } else { btn.classList.add('disabled'); btn.disabled = true; } },
+    executeReset: function() { sfx.error(); gameManager.clearProgress(); localStorage.clear(); window.location.href = "../index.html"; },
+    triggerGameOver: function() { this.state.isGameOver = true; sfx.error(); document.getElementById('game-over-modal').classList.remove('hidden'); },
+    saveGame: function() { gameManager.saveProgress(this.state); },
+    loadGame: function() { let d = gameManager.loadProgress(); if(d) { this.state = { ...this.state, ...d }; if(this.state.water < 300) this.state.water = 3000; } else { this.state.water = 3000; this.state.unlockedTier = 4; } },
+    hardReset: function() { gameManager.clearProgress(); location.reload(); },
+    renderAll: function() { this.updateUI(); this.renderFarms(); this.renderMapInfo(); this.renderUnits(); }
+};
+
+window.addEventListener('load', () => app.init());
