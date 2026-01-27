@@ -3,15 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>PROTOCOLO HIDRA - COLLAPSE</title>
+    <title>PROTOCOLO HIDRA - V.A.O. ACCESS</title>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
+    <div id="menu-screen">
+        <div class="menu-content">
+            
+            <div class="logo-wrapper">
+                <svg class="vao-logo" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+                    <path class="logo-frame" d="M283.29,14.8h-65.89L88.58,303.43l127.45,181.77h67.52l127.87-181.77L283.29,14.8ZM271.66,133.09h-43.71l21.93-52.72,21.78,52.72ZM252.27,434.69l-95.17-131.26,49.78-119.68h85.7l49.43,119.68-89.75,131.26h0Z"/>
+                    
+                    <path class="logo-ring" d="M278.12,225.86c-8.97-3.48-18.81-5.23-29.52-5.23s-20.39,1.74-29.42,5.23c-9.04,3.48-16.91,8.39-23.62,14.71-6.71,6.32-11.9,13.75-15.58,22.26-3.68,8.52-5.52,17.81-5.52,27.88s1.84,19.36,5.52,27.88c3.68,8.52,8.84,15.94,15.49,22.26,6.65,6.32,14.52,11.23,23.62,14.71,9.1,3.48,19,5.23,29.71,5.23s20.36-1.74,29.33-5.23c8.97-3.48,16.78-8.35,23.42-14.61,6.65-6.26,11.84-13.68,15.58-22.26,3.74-8.58,5.61-17.91,5.61-27.97s-1.87-19.52-5.61-27.97c-3.75-8.45-8.94-15.84-15.58-22.17-6.65-6.32-14.45-11.23-23.42-14.71h0ZM287.8,308.33c-2.13,5.29-5.13,9.87-9,13.75-3.87,3.87-8.36,6.84-13.45,8.9-5.1,2.07-10.68,3.1-16.75,3.1s-11.68-1.03-16.84-3.1c-5.16-2.06-9.65-5.03-13.45-8.9-3.81-3.87-6.78-8.48-8.91-13.84-2.13-5.35-3.19-11.19-3.19-17.52s1.06-12.32,3.19-17.62c2.13-5.29,5.13-9.87,9-13.74s8.35-6.84,13.45-8.91c5.1-2.06,10.68-3.1,16.75-3.1s11.68,1.03,16.84,3.1,9.65,5.03,13.45,8.91c3.81,3.87,6.78,8.45,8.91,13.74,2.13,5.29,3.19,11.16,3.19,17.62s-1.06,12.33-3.19,17.62h0Z"/>
+                    
+                    <g class="logo-core">
+                        <path d="M263.3,276.79c-1.85-1.76-4.01-3.12-6.5-4.09-2.49-.97-5.22-1.45-8.2-1.45s-5.66.48-8.17,1.45-4.7,2.33-6.56,4.09-3.31,3.82-4.33,6.18c-1.02,2.37-1.53,4.95-1.53,7.74s.51,5.38,1.53,7.74c1.02,2.37,2.45,4.43,4.3,6.18,1.85,1.76,4.03,3.12,6.56,4.09s5.28,1.45,8.25,1.45,5.65-.48,8.14-1.45c2.49-.97,4.66-2.32,6.5-4.06,1.85-1.74,3.29-3.8,4.33-6.18,1.04-2.38,1.56-4.97,1.56-7.77s-.52-5.42-1.56-7.77c-1.04-2.35-2.48-4.4-4.33-6.15h0ZM259.48,295.6c-.59,1.47-1.42,2.74-2.5,3.82-1.08,1.08-2.32,1.9-3.74,2.47s-2.97.86-4.65.86-3.24-.29-4.68-.86c-1.43-.57-2.68-1.4-3.74-2.47-1.06-1.08-1.88-2.36-2.47-3.84-.59-1.49-.89-3.11-.89-4.86s.3-3.42.89-4.89,1.42-2.74,2.5-3.82c1.08-1.08,2.32-1.9,3.74-2.47s2.97-.86,4.65-.86,3.24.29,4.68.86c1.43.57,2.68,1.4,3.74,2.47,1.06,1.07,1.88,2.35,2.47,3.82s.89,3.1.89,4.89-.3,3.42-.89,4.89h0Z"/>
+                    </g>
+                </svg>
+            </div>
+            
+            <h1 class="game-title">PROTOCOLO HIDRA</h1>
+            <p class="game-subtitle">INICIATIVA DE PRESERVACIÓN HUMANA</p>
+            
+            <button id="btn-start-system" onclick="app.startExperience()">
+                <i class="fa-solid fa-power-off"></i> INICIAR SISTEMA
+            </button>
+            <p class="version-text">v3.0.2 // V.A.O. ONLINE</p>
+        </div>
+    </div>
+
+    <div id="intro-layer" class="hidden">
+        <video id="intro-video" playsinline webkit-playsinline>
+            <source src="assets/intro.mp4" type="video/mp4">
+        </video>
+        <button id="btn-skip-intro" onclick="app.endIntro()">OMITIR SECUENCIA >></button>
+    </div>
+
     <div id="tutorial-overlay" class="tutorial-box hidden">
-        <i class="fa-solid fa-circle-info"></i> <span id="tutorial-text">Bienvenido, Operador.</span>
+        <i class="fa-solid fa-terminal"></i> <span id="tutorial-text">INICIALIZANDO...</span>
     </div>
 
     <div id="game-over-modal" class="modal-overlay hidden">
@@ -22,21 +56,35 @@
         </div>
     </div>
 
-    <div id="hack-modal" class="modal-overlay hidden">
-        <div class="modal-content hack-theme">
-            <h1 class="glitch-text">IA VAO: ACCESO DENEGADO</h1>
-            <p>Protocolo Ético Activo. Intervención requerida.</p>
-            <div class="hack-progress-container">
-                <div id="hack-bar" class="hack-fill" style="width: 0%"></div>
+    <div id="build-overlay" class="modal-overlay hidden">
+        <div class="modal-content build-theme">
+            <h2 class="blink-text">ESTABLECIENDO ESTRUCTURA</h2>
+            
+            <div class="build-visual">
+                <div class="scan-line"></div>
+                <i class="fa-solid fa-warehouse main-icon"></i>
+                <div class="particles">
+                    <i class="fa-solid fa-plus p1"></i>
+                    <i class="fa-solid fa-plus p2"></i>
+                    <i class="fa-solid fa-plus p3"></i>
+                </div>
             </div>
-            <p style="font-size: 0.8rem; margin-top:10px;">PULSA REPETIDAMENTE PARA SOBRESCRIBIR CÓDIGO ÉTICO</p>
-            <button id="btn-hack-action" class="btn-cta hack-btn" onmousedown="app.clickHack()" ontouchstart="app.clickHack(event)">INJECT_VIRUS.EXE</button>
+
+            <div class="terminal-log">
+                <p>> Allocating resources...</p>
+                <p>> Compiling bio-data...</p>
+                <p class="success-text">> SYSTEM READY.</p>
+            </div>
+
+            <div class="loading-bar-container">
+                <div class="loading-fill"></div>
+            </div>
         </div>
     </div>
 
     <header id="global-header">
         <div class="header-top">
-            <div class="header-level">NIVEL: <span id="access-level">1</span></div>
+            <div class="header-level">FASE: <span id="access-level">TUTORIAL</span></div>
             <div class="resource-counter">AGUA: <span id="total-water">0</span> L</div>
         </div>
         
@@ -48,11 +96,11 @@
         </div>
 
         <div class="header-status">
-            <span>FLUJO: <span id="net-flow">+0.0</span> L/s</span>
+            <span>OBJETIVO: <span id="current-objective" style="color:var(--accent-color)">ESPERA</span></span>
         </div>
     </header>
 
-    <section id="view-farms" class="active-view">
+    <section id="view-farms" class="hidden">
         <div class="section-title">CONCESIONES DE EXTRACCIÓN</div>
         <div id="farm-shop-list"></div>
     </section>
@@ -62,62 +110,66 @@
         <div id="units-list"></div>
     </section>
 
-    <section id="view-map" class="hidden">
+    <section id="view-map" class="active-view">
         <div class="map-header">
             <span>RADAR TÁCTICO</span> 
             <span class="cost-indicator">COSTO: <span id="capture-cost">0</span> L</span>
         </div>
-        <div class="radar-container">
+        <div class="radar-container" id="radar-screen">
             <div class="radar-sweep"></div>
-            <div class="radar-center" id="radar-target-type">NADA</div>
+            <div class="radar-center" id="radar-target-type">ESCANEO</div>
         </div>
         <div class="panel-box">
             <ul class="scan-results" id="scan-info"></ul>
         </div>
-        <button class="btn-cta" onclick="app.tryCapture()">[ INICIAR CAPTURA ]</button>
+        <button id="btn-capture" class="btn-cta" onclick="app.tryCapture()">[ INICIAR CAPTURA ]</button>
     </section>
 
     <section id="view-society" class="hidden">
         <div class="section-title">MANTENIMIENTO DE POBLACIÓN</div>
         <div class="visual-container society-visual">
             <i class="fa-solid fa-city fa-3x"></i>
-            <div class="overlay-scan">POBLACIÓN RESTANTE</div>
+            <div class="overlay-scan">ESTADO: ESTABLE</div>
         </div>
         
         <div class="panel-box">
             <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 15px;">
-                La población consume recursos constantemente. Si la estabilidad llega a 0%, el sistema colapsa.
+                La sociedad requiere agua constante.
             </p>
             <div class="society-stats">
-                <div>CONSUMO ACTUAL: <span id="soc-drain" class="text-danger">-0.5</span> %/s</div>
+                <div>CONSUMO: <span id="soc-drain" class="text-danger">-0.2</span> %/s</div>
             </div>
         </div>
 
         <div class="action-grid">
             <button class="btn-big action-blue" onclick="app.feedSociety(10)">
-                SUMINISTRO MENOR<br><small>-100 L (+10%)</small>
+                SUMINISTRO MENOR<br><small>-10 L (+15%)</small>
             </button>
-            <button class="btn-big action-blue" onclick="app.feedSociety(50)">
-                SUMINISTRO MASIVO<br><small>-450 L (+50%)</small>
-            </button>
+            <button class="btn-big action-blue element-locked">BLOQUEADO</button>
         </div>
+
+        <button class="btn-flee" disabled>
+            <i class="fa-solid fa-person-running"></i> ABANDONAR CIUDAD (OFFLINE)
+        </button>
     </section>
 
     <nav class="bottom-nav">
-        <button class="nav-item active" onclick="app.navigateTo('farms')">
+        <button id="nav-farms" class="nav-item element-locked" onclick="app.navigateTo('farms')">
             <i class="fa-solid fa-industry"></i>INFRA
         </button>
-        <button class="nav-item" onclick="app.navigateTo('extraction')">
+        <button id="nav-extraction" class="nav-item element-locked" onclick="app.navigateTo('extraction')">
             <i class="fa-solid fa-flask"></i>EXTRAC
         </button>
-        <button class="nav-item" onclick="app.navigateTo('map')">
+        <button id="nav-map" class="nav-item active" onclick="app.navigateTo('map')">
             <i class="fa-solid fa-crosshairs"></i>RADAR
         </button>
-        <button class="nav-item warning-nav" onclick="app.navigateTo('society')">
+        <button id="nav-society" class="nav-item element-locked" onclick="app.navigateTo('society')">
             <i class="fa-solid fa-heart-pulse"></i>SOCIEDAD
         </button>
     </nav>
 
+    <script src="audio.js"></script>
+    <script src="game_manager.js"></script>
     <script src="script.js" defer></script>
 </body>
 </html>

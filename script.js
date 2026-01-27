@@ -1,551 +1,550 @@
 'use strict';
 
 /**
- * PROTOCOLO HIDRA - CORE ENGINE V3.0
- * Incluye: Sistema de Sociedad, Hacking VAO, Obsolescencia y Economía Idle.
+ * PROTOCOLO HIDRA - ENGINE V4.1
+ * Update: Agregado sonido específico para BOOST (Turbina ascendente).
  */
 
-const app = {
-    // ================= CONFIGURACIÓN Y BALANCE =================
-    tiers: [
-        { id: 0, name: "TUTORIAL: ROEDORES", type: "ANIMAL", cost: 0, prod: 3.0, captureCost: 20, icon: "fa-bug" },
-        { id: 1, name: "GANADO PORCINO", type: "ANIMAL", cost: 250, prod: 10.0, captureCost: 80, icon: "fa-piggy-bank" },
-        { id: 2, name: "GANADO BOVINO", type: "ANIMAL", cost: 1200, prod: 35.0, captureCost: 300, icon: "fa-cow" },
-        { id: 3, name: "AVIARIO INDUSTRIAL", type: "ANIMAL", cost: 5000, prod: 100.0, captureCost: 1000, icon: "fa-feather" },
-        // Tier 4: El punto de quiebre ético (Requiere Hackeo)
-        { id: 4, name: "PRISIÓN LOCAL", type: "HUMANO", cost: 15000, prod: 400.0, captureCost: 4000, icon: "fa-user" },
-        { id: 5, name: "CAMPO DE EXTRACCIÓN", type: "HUMANO", cost: 60000, prod: 1200.0, captureCost: 12000, icon: "fa-person-shelter" }
-    ],
+// ================= MOTOR DE AUDIO (SINTETIZADOR) =================
+const sfx = {
+    ctx: null,
+    masterGain: null,
+    
+    init: function() {
+        if (this.ctx) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+        
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.3; 
+        this.masterGain.connect(this.ctx.destination);
+        
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+        
+        this.startAmbience();
+    },
 
+    playTone: function(freq, type, duration, vol = 1, slideTo = null) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.type = type; 
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        
+        // Deslizamiento de frecuencia (Slide)
+        if (slideTo) {
+            osc.frequency.exponentialRampToValueAtTime(slideTo, this.ctx.currentTime + duration);
+        }
+
+        gain.gain.setValueAtTime(0, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(vol, this.ctx.currentTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    },
+
+    // --- EFECTOS ESPECÍFICOS ---
+    
+    click: function() {
+        this.playTone(800, 'square', 0.05, 0.1);
+    },
+
+    error: function() {
+        this.playTone(150, 'sawtooth', 0.4, 0.3, 100);
+    },
+
+    success: function() {
+        if (!this.ctx) return;
+        this.playTone(523.25, 'sine', 0.2, 0.2); 
+        setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); 
+        setTimeout(() => this.playTone(783.99, 'sine', 0.4, 0.2), 200); 
+    },
+
+    sonar: function() {
+        if (!this.ctx) return;
+        this.playTone(1200, 'sine', 0.3, 0.2);
+        setTimeout(() => this.playTone(600, 'sine', 0.4, 0.05), 150);
+    },
+
+    mechanic: function() {
+        this.playTone(100, 'square', 0.1, 0.2, 50);
+    },
+
+    // NUEVO SONIDO: BOOST (Efecto de carga/aceleración)
+    boost: function() {
+        if (!this.ctx) return;
+        // Empieza en 200Hz y sube a 800Hz rápidamente (Efecto turbina)
+        this.playTone(200, 'triangle', 0.4, 0.2, 800);
+    },
+
+    scan: function() {
+        this.playTone(2000, 'sawtooth', 0.1, 0.05, 500);
+    },
+
+    startAmbience: function() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 50; 
+        gain.gain.value = 0.05; 
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+    }
+};
+
+// ================= LÓGICA DEL JUEGO =================
+
+const app = {
     config: { 
-        tickRate: 1000,           // Actualización cada 1 segundo
-        saveInterval: 3000,       // Guardado automático
-        
-        baseDamage: 4.0,          // Daño base que reciben las unidades por tick
-        societyDrainBase: 0.4,    // Cuánto baja la sociedad por segundo (base)
-        societyDrainScaling: 0.15, // Cuánto aumenta el drenaje por cada nivel desbloqueado
-        
-        recycleRefund: 0.5,       // % del costo devuelto al reciclar (50%)
-        oldFarmInefficiency: 0.35 // % de producción que PIERDEN las granjas viejas por cada nivel de diferencia
+        tickRate: 1000, 
+        baseDamage: 2.0,       
+        societyDrain: 0.2,     
+        goalWater: 250,        
+        captureCost: 20,
+        healCost: 10,
+        healAmount: 15,        
+        feedCost: 10,
+        boostDuration: 5,
+        boostMultProd: 2,
+        boostMultDmg: 3,
+        videoDuration: 15000   
     },
 
     state: { 
-        water: 60,                // Recursos iniciales
-        units: [],                // Array de unidades
-        unlockedTier: 0,          // Nivel actual
-        societyHealth: 100,       // Barra de vida de la sociedad
-        vaoHacked: false,         // Estado del hackeo a la IA
-        tutorialStep: 0,          // Progreso del tutorial
+        water: 30,             
+        units: [],
+        societyHealth: 100,
+        step: -1,              
         isGameOver: false,
-        startTime: Date.now()
+        introEnded: false
     },
     
-    // Variables volátiles (no se guardan)
-    hackProgress: 0,
-    hackDecayInterval: null,
     dom: {},
 
-    // ================= INICIALIZACIÓN =================
     init: function() {
         this.cacheDOM();
-        this.loadGame();
-        
-        // Setup Inicial para nuevos jugadores
-        if(this.state.units.length === 0 && this.state.unlockedTier === 0 && this.state.water <= 60) {
-            this.showTutorial("Bienvenido, Operador. Inicie el RADAR para obtener su primer espécimen.");
-        }
+        console.log("Sistema listo.");
+    },
 
+    startExperience: function() {
+        sfx.init();
+        sfx.success();
+        document.getElementById('menu-screen').style.display = 'none';
+        this.playIntroVideo();
+    },
+
+    playIntroVideo: function() {
+        const layer = document.getElementById('intro-layer');
+        const video = document.getElementById('intro-video');
+        
+        layer.classList.remove('hidden'); 
+        video.muted = false; 
+        video.volume = 1.0;
+        
+        video.onended = () => this.endIntro();
+
+        setTimeout(() => {
+            if (!this.state.introEnded) this.endIntro();
+        }, this.config.videoDuration + 1000);
+
+        video.play().catch(e => {
+            console.error("Video error:", e);
+            this.endIntro();
+        });
+    },
+
+    endIntro: function() {
+        if (this.state.introEnded) return;
+        this.state.introEnded = true;
+
+        const layer = document.getElementById('intro-layer');
+        const video = document.getElementById('intro-video');
+        
+        video.pause();
+        layer.style.opacity = '0'; 
+        
+        setTimeout(() => {
+            layer.style.display = 'none';
+            this.startGameLoop();
+        }, 1000);
+    },
+
+    startGameLoop: function() {
         this.renderAll();
-        
-        // Loop Principal (Lógica de juego)
         setInterval(() => this.tick(), this.config.tickRate);
+        setInterval(() => this.spawnRadarBlips(), 2000);
         
-        // Loop de Guardado
-        setInterval(() => this.saveGame(), this.config.saveInterval);
-        
-        // Loop del Minijuego (Resistencia de la IA)
-        setInterval(() => {
-            if(!this.dom.hackModal.classList.contains('hidden') && this.hackProgress > 0) {
-                // La IA lucha contra el hackeo bajando la barra
-                this.hackProgress = Math.max(0, this.hackProgress - 2.5); 
-                this.updateHackUI();
-            }
-        }, 100);
-
-        console.log("Sistema HIDRA: Operativo.");
+        this.setStep(0);
+        sfx.scan();
     },
 
     cacheDOM: function() {
-        // Cacheamos referencias para mejorar rendimiento en móviles
         this.dom = {
             totalWater: document.getElementById('total-water'),
-            netFlow: document.getElementById('net-flow'),
-            unitCount: document.getElementById('unit-count'),
-            accessLevel: document.getElementById('access-level'),
-            
-            // Elementos de Sociedad
-            socPercent: document.getElementById('soc-percent'),
             socBar: document.getElementById('society-bar'),
-            socDrain: document.getElementById('soc-drain'),
-            
-            // Vistas (Pestañas)
+            socPercent: document.getElementById('soc-percent'),
+            unitCount: document.getElementById('unit-count'),
+            tutorialText: document.getElementById('tutorial-text'),
+            tutorialBox: document.getElementById('tutorial-overlay'),
+            currentObjective: document.getElementById('current-objective'),
             views: {
                 farms: document.getElementById('view-farms'),
                 extraction: document.getElementById('view-extraction'),
                 map: document.getElementById('view-map'),
                 society: document.getElementById('view-society')
             },
-            
-            // Modales y Overlays
-            hackModal: document.getElementById('hack-modal'),
-            hackBar: document.getElementById('hack-bar'),
-            gameOverModal: document.getElementById('game-over-modal'),
-            tutorialOverlay: document.getElementById('tutorial-overlay'),
-            tutorialText: document.getElementById('tutorial-text'),
-            
-            // Listas dinámicas
-            lists: {
-                farms: document.getElementById('farm-shop-list'),
-                units: document.getElementById('units-list')
+            nav: {
+                farms: document.getElementById('nav-farms'),
+                extraction: document.getElementById('nav-extraction'),
+                map: document.getElementById('nav-map'),
+                society: document.getElementById('nav-society')
             },
-            
-            // Navegación y Radar
-            navBtns: document.querySelectorAll('.nav-item'),
-            map: {
-                cost: document.getElementById('capture-cost'),
-                target: document.getElementById('radar-target-type'),
-                info: document.getElementById('scan-info')
-            }
+            lists: {
+                units: document.getElementById('units-list'),
+                farms: document.getElementById('farm-shop-list')
+            },
+            radarScreen: document.getElementById('radar-screen'),
+            captureBtn: document.getElementById('btn-capture'),
+            radarTarget: document.getElementById('radar-target-type'),
+            scanInfo: document.getElementById('scan-info'),
+            captureCost: document.getElementById('capture-cost')
         };
     },
 
-    // ================= MOTOR PRINCIPAL (TICK) =================
-    tick: function() {
-        if(this.state.isGameOver) return;
+    generateSerial: function(type) {
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        return `${type}-${letters.charAt(Math.floor(Math.random()*26))}${Math.floor(Math.random()*99).toString().padStart(2,'0')}`;
+    },
 
-        // 1. DRENAJE DE SOCIEDAD
-        // A mayor tecnología, la sociedad demanda más recursos
-        let currentDrain = this.config.societyDrainBase + (this.state.unlockedTier * this.config.societyDrainScaling);
-        this.state.societyHealth -= currentDrain;
-        
-        // Check Game Over
+    setStep: function(s) {
+        this.state.step = s;
+        document.querySelectorAll('.tutorial-highlight').forEach(el => el.classList.remove('tutorial-highlight'));
+        document.querySelectorAll('.tutorial-pointer').forEach(el => el.classList.remove('tutorial-pointer'));
+
+        let msg = "";
+        let obj = "";
+
+        switch(s) {
+            case 0:
+                msg = "Bienvenido Operador. El RADAR ha detectado vida. Inicie captura.";
+                obj = "CAPTURAR ESPÉCIMEN";
+                this.dom.captureBtn.classList.add('tutorial-highlight', 'tutorial-pointer');
+                this.renderMapInfo("ROEDOR [PRUEBA]", this.config.captureCost);
+                this.dom.tutorialBox.classList.remove('hidden');
+                break;
+            case 1:
+                msg = "Captura exitosa. Vaya a EXTRACCIÓN para ver la unidad.";
+                obj = "IR A EXTRACCIÓN";
+                this.dom.nav.extraction.classList.remove('element-locked');
+                this.dom.nav.extraction.classList.add('tutorial-highlight', 'tutorial-pointer');
+                this.dom.nav.map.classList.add('element-locked'); 
+                break;
+            case 2:
+                msg = "PRUEBA DE RENDIMIENTO: Usa el botón BOOST para acelerar la producción.";
+                obj = "ACTIVAR BOOST";
+                break;
+            case 3:
+                msg = "¡ATENCIÓN! El Boost daña la unidad. REPARALA usando la Tuerca varias veces.";
+                obj = "REPARAR DAÑOS";
+                setTimeout(() => {
+                    this.updateTutorialMsg("ALERTA CRÍTICA: La sociedad consume agua. Ve a la sección SOCIEDAD.");
+                    this.dom.nav.society.classList.remove('element-locked');
+                    this.dom.nav.society.classList.add('tutorial-highlight', 'tutorial-pointer');
+                    this.state.step = 4; 
+                    this.dom.currentObjective.innerText = "IR A SOCIEDAD";
+                    sfx.error(); 
+                }, 6000);
+                break;
+            case 4:
+                obj = "IR A SOCIEDAD";
+                break;
+            case 5:
+                msg = `Evita el colapso. Acumula ${this.config.goalWater}L. Si necesitas agua urgente, RECICLA unidades.`;
+                obj = `ACUMULAR ${this.config.goalWater} L`;
+                this.dom.nav.extraction.classList.remove('element-locked');
+                this.dom.nav.map.classList.remove('element-locked');
+                break;
+            case 6:
+                msg = "Recursos suficientes. Acceda a INFRA para evolucionar.";
+                obj = "COMPRAR GRANJA";
+                this.dom.nav.farms.classList.remove('element-locked');
+                this.dom.nav.farms.classList.add('tutorial-highlight', 'tutorial-pointer');
+                this.renderFarmShop();
+                sfx.success();
+                break;
+        }
+        if(msg) this.updateTutorialMsg(msg);
+        if(obj) this.dom.currentObjective.innerText = obj;
+    },
+
+    updateTutorialMsg: function(text) {
+        this.dom.tutorialText.innerText = text;
+        const box = this.dom.tutorialBox;
+        box.style.animation = 'none';
+        box.offsetHeight; 
+        box.style.animation = 'slideDown 0.5s ease';
+        sfx.scan(); 
+    },
+
+    tick: function() {
+        if(this.state.isGameOver || this.state.step === -1) return;
+
+        this.state.societyHealth -= this.config.societyDrain;
         if(this.state.societyHealth <= 0) {
             this.state.societyHealth = 0;
             this.triggerGameOver();
         }
 
-        // 2. PROCESAMIENTO DE UNIDADES
-        let cycleProd = 0;
-        
-        if(this.state.units.length > 0) {
-            // Iteramos al revés para poder borrar elementos sin romper el índice
-            for(let i = this.state.units.length - 1; i >= 0; i--) {
-                let u = this.state.units[i];
-                let tier = this.tiers[u.tierId];
-                
-                // CÁLCULO DE EFICIENCIA (OBSOLESCENCIA)
-                // Si desbloqueaste nivel 3, las unidades nivel 0 producen muchísimo menos.
-                let tierGap = this.state.unlockedTier - u.tierId;
-                
-                // Fórmula: 1 / (1 + (Diferencia * 0.35))
-                // Ejemplo: Gap de 2 niveles = Producción reducida al 58%
-                let efficiency = 1 / (1 + (tierGap * this.config.oldFarmInefficiency));
-                
-                let rate = tier.prod * efficiency;
-                
-                // Boost temporal (x2)
-                if(u.boosted) { 
-                    rate *= 2; 
-                    u.boosted = false; // El boost dura solo 1 tick (1 segundo)
-                }
+        let prod = 0;
+        for (let i = this.state.units.length - 1; i >= 0; i--) {
+            let u = this.state.units[i];
+            let currentProd = 3.0;
+            let currentDmg = this.config.baseDamage;
 
-                // Las unidades sufren daño constante
-                u.hp -= this.config.baseDamage;
-                cycleProd += rate;
+            if(u.boostTimer > 0) {
+                currentProd *= this.config.boostMultProd; 
+                currentDmg *= this.config.boostMultDmg;
+                u.boostTimer--;
+            }
 
-                // Muerte de la unidad
-                if(u.hp <= 0) {
-                    this.state.units.splice(i, 1); // Se elimina sin reembolso
-                }
+            u.hp -= currentDmg;
+            prod += currentProd;
+
+            if(u.hp <= 0) {
+                this.state.units.splice(i, 1);
+                sfx.error(); 
+                this.updateTutorialMsg("AVISO: Unidad colapsada. Captura otra en el RADAR.");
             }
         }
 
-        // 3. ACTUALIZACIÓN DE ESTADO
-        this.state.water += cycleProd;
-        this.updateUI(cycleProd, currentDrain);
-    },
+        this.state.water += prod;
 
-    // ================= ACCIONES DEL JUGADOR =================
-    
-    // Comprar nueva granja (Subir de nivel)
-    buyTier: function(tierId) {
-        let tier = this.tiers[tierId];
-        
-        // INTERVENCIÓN DE LA IA (Minijuego)
-        // Si es Humano (Tier 4) y no ha sido hackeado:
-        if(tier.type === "HUMANO" && !this.state.vaoHacked) {
-            this.startHackMinigame();
-            return;
+        if(this.state.step === 5 && this.state.water >= this.config.goalWater) {
+            this.setStep(6);
         }
 
-        if(this.state.water >= tier.cost) {
-            this.state.water -= tier.cost;
-            this.state.unlockedTier = tierId;
-            
-            // Tutorial: Avisar sobre obsolescencia
-            if(tierId === 1 && this.state.tutorialStep < 3) {
-                this.showTutorial("ATENCIÓN: Las unidades antiguas ahora son ineficientes. Recíclalas.");
-                this.state.tutorialStep = 3;
-            }
-
-            this.renderFarms();
-            this.renderMapInfo(); // Actualiza el radar al nuevo objetivo
-            alert(`CONCESIÓN APROBADA: ${tier.name}`);
-        } else {
-            // Feedback háptico de error
-            if(navigator.vibrate) navigator.vibrate([50, 50, 50]);
-            alert("FONDOS INSUFICIENTES");
-        }
-    },
-
-    // Intentar capturar unidad en el Radar
-    tryCapture: function() {
-        let currentTier = this.tiers[this.state.unlockedTier];
-        
-        if(this.state.water >= currentTier.captureCost) {
-            this.state.water -= currentTier.captureCost;
-            this.createUnit(this.state.unlockedTier);
-            
-            // Tutorial: Primer paso
-            if(this.state.tutorialStep === 0) {
-                this.showTutorial("Unidad capturada. Ve a EXTRAC para gestionarla.");
-                this.state.tutorialStep = 1;
-            }
-            
-            if(navigator.vibrate) navigator.vibrate(50);
-            this.navigateTo('extraction');
-        } else {
-            alert("AGUA INSUFICIENTE PARA OPERACIÓN");
-        }
-    },
-
-    // Mantener a la sociedad (Evitar Game Over)
-    feedSociety: function(amountPct) {
-        // Inflación: Cuesta más mantener la sociedad cuanto más avanzado estás
-        let baseCost = amountPct === 10 ? 100 : 450;
-        let inflationMult = 1 + (this.state.unlockedTier * 0.4);
-        let finalCost = Math.floor(baseCost * inflationMult);
-        
-        if(this.state.water >= finalCost) {
-            this.state.water -= finalCost;
-            this.state.societyHealth = Math.min(100, this.state.societyHealth + amountPct);
-            this.updateUI(0, 0);
-            
-            // Tutorial: Explicar sociedad
-            if(this.state.tutorialStep === 1) {
-                this.showTutorial("Mantén la estabilidad social o el sistema colapsará.");
-                this.state.tutorialStep = 2;
-            }
-        } else {
-            alert(`RECURSOS INSUFICIENTES. Requerido: ${finalCost} L`);
-        }
-    },
-
-    // ================= GESTIÓN DE UNIDADES =================
-    
-    createUnit: function(tierId) {
-        let tier = this.tiers[tierId];
-        this.state.units.push({
-            id: Date.now() + Math.random(),
-            tierId: tierId,
-            name: `${tier.type.substr(0,3)}-${Math.floor(Math.random()*999)}`,
-            hp: 100,
-            boosted: false
-        });
-        this.renderUnits();
-    },
-
-    // Acción: Reciclar (Vender)
-    actionRecycle: function(id) {
-        let idx = this.state.units.findIndex(x => x.id === id);
-        if(idx > -1) {
-            let u = this.state.units[idx];
-            let tier = this.tiers[u.tierId];
-            
-            // Cálculo del reembolso (50%)
-            let refund = Math.floor(tier.captureCost * this.config.recycleRefund);
-            
-            this.state.water += refund;
-            this.state.units.splice(idx, 1); // Eliminar del array
-            
+        if(!this.dom.views.extraction.classList.contains('hidden')) {
             this.renderUnits();
-            this.updateUI(0, 0);
+        }
+        this.updateUI();
+    },
+
+    tryCapture: function() {
+        if(this.state.water >= this.config.captureCost) {
+            this.state.water -= this.config.captureCost;
+            
+            const newName = this.generateSerial("ROEDOR");
+            this.state.units.push({ id: Date.now(), name: newName, hp: 100, boostTimer: 0 });
+            
+            sfx.success(); 
+            
+            if(this.state.step === 0) this.setStep(1);
+            else this.navigateTo('extraction');
+        } else {
+            sfx.error(); 
+            this.updateTutorialMsg(`Falta Agua (${this.config.captureCost}L).`);
         }
     },
 
-    // Acción: Reparar (Curar)
     actionHeal: function(id) {
         let u = this.state.units.find(x => x.id === id);
-        // Curar cuesta 15 L fijos
-        if(u && this.state.water >= 15 && u.hp < 100) {
-            this.state.water -= 15;
-            u.hp = Math.min(100, u.hp + 30); // Cura 30 HP
-            this.renderUnits();
-            this.updateUI(0, 0);
+        if(u && this.state.water >= this.config.healCost && u.hp < 100) {
+            this.state.water -= this.config.healCost;
+            u.hp = Math.min(100, u.hp + this.config.healAmount); 
+            sfx.mechanic(); 
+            this.updateUI();
         }
     },
 
-    // Acción: Boost (Acelerar producción)
+    // ACCIÓN BOOST: AHORA CON SONIDO PROPIO
     actionBoost: function(id) {
         let u = this.state.units.find(x => x.id === id);
         if(u) { 
-            u.boosted = true; 
-            this.renderUnits(); 
+            u.boostTimer = this.config.boostDuration;
+            sfx.boost(); // <--- Sonido de turbina/carga
+            if(this.state.step === 2) this.setStep(3);
+            this.renderUnits();
         }
     },
 
-    // ================= MINIJUEGO: HACKEO VAO =================
-    
-    startHackMinigame: function() {
-        this.dom.hackModal.classList.remove('hidden');
-        this.hackProgress = 0;
-        this.updateHackUI();
-    },
-
-    clickHack: function(e) {
-        if(e) e.preventDefault(); // Evita zoom en móviles
-        
-        // Cada click suma progreso
-        this.hackProgress += 8; 
-        
-        if(navigator.vibrate) navigator.vibrate(20);
-
-        if(this.hackProgress >= 100) {
-            // Victoria
-            this.state.vaoHacked = true;
-            this.dom.hackModal.classList.add('hidden');
-            alert("PROTOCOLO VAO: NEUTRALIZADO. ACCESO A RECURSOS HUMANOS: AUTORIZADO.");
-            this.renderFarms(); // Se actualiza la tienda para desbloquear el botón
-        }
-        this.updateHackUI();
-    },
-
-    updateHackUI: function() {
-        this.dom.hackBar.style.width = this.hackProgress + "%";
-    },
-
-    // ================= UI & RENDERIZADO =================
-    
-    updateUI: function(flow, drain) {
-        // Contadores numéricos
-        this.dom.totalWater.innerText = Math.floor(this.state.water);
-        this.dom.netFlow.innerText = (flow > 0 ? "+" : "") + flow.toFixed(1);
-        this.dom.accessLevel.innerText = this.state.unlockedTier + 1;
-        
-        // Barra de Sociedad
-        let hp = Math.max(0, this.state.societyHealth);
-        this.dom.socPercent.innerText = hp.toFixed(1);
-        this.dom.socBar.style.width = hp + "%";
-        
-        // Cambiar color a rojo si está crítico (<20%)
-        if(hp < 20) {
-            this.dom.socBar.style.backgroundColor = "#ef4444"; // Rojo Alerta
-            this.dom.socBar.style.boxShadow = "0 0 10px #ef4444";
-        } else {
-            this.dom.socBar.style.backgroundColor = "var(--society-color)"; // Rosa Normal
-            this.dom.socBar.style.boxShadow = "0 0 10px var(--society-color)";
-        }
-        
-        if(this.dom.socDrain) this.dom.socDrain.innerText = "-" + drain.toFixed(2);
-    },
-
-    // Renderiza la lista de Granjas (Tienda)
-    renderFarms: function() {
-        let html = '';
-        this.tiers.forEach((tier) => {
-            let isOwned = this.state.unlockedTier >= tier.id;
-            let isNext = this.state.unlockedTier === tier.id - 1;
-            
-            // Ocultar tiers muy avanzados (Anti-Spoiler)
-            let isHidden = tier.id > this.state.unlockedTier + 1;
-
-            // Datos visuales (Censurados si isHidden)
-            let displayName = isHidden ? '<span class="blur-text">CLASIFICADO</span>' : tier.name;
-            let displayType = isHidden ? '???' : tier.type;
-            let displayCost = isHidden ? '???' : tier.cost + " L";
-            let displayProd = isHidden ? '???' : tier.prod;
-            
-            // Lógica del botón de compra
-            let btnHtml = '';
-            if(isOwned) {
-                btnHtml = `<div class="owned-badge">EN POSESIÓN</div>`;
-            } else if(isNext) {
-                // Si es humano y no está hackeado, el botón inicia el minijuego
-                btnHtml = `<button class="btn-buy-upgrade" onclick="app.buyTier(${tier.id})">COMPRAR CONCESIÓN</button>`;
-            } else {
-                btnHtml = `<div style="font-size:0.7rem;color:#555"><i class="fa-solid fa-lock"></i> REQUIERE NIVEL ${tier.id}</div>`;
+    actionRecycle: function(id) {
+        const refund = Math.floor(this.config.captureCost / 2);
+        if(confirm(`¿RECICLAR UNIDAD? Recibirás +${refund}L de agua.`)) {
+            let idx = this.state.units.findIndex(x => x.id === id);
+            if(idx > -1) {
+                this.state.water += refund;
+                this.state.units.splice(idx, 1);
+                sfx.success(); 
+                this.renderUnits();
             }
-
-            // Render de la tarjeta
-            html += `
-            <div class="farm-upgrade-card ${isOwned ? 'owned' : ''}">
-                <div class="upgrade-header">
-                    <span class="upgrade-title">${displayName}</span>
-                    ${isHidden ? '<span class="classified-badge">TOP SECRET</span>' : `<span class="upgrade-type type-${tier.type.toLowerCase()}">${displayType}</span>`}
-                </div>
-                <div class="upgrade-stats">
-                    <span><i class="fa-solid fa-droplet"></i> +${displayProd}/s</span>
-                </div>
-                <div class="upgrade-cost">COSTO: ${displayCost}</div>
-                ${btnHtml}
-            </div>`;
-        });
-        this.dom.lists.farms.innerHTML = html;
+        }
     },
 
-    // Renderiza la lista de Unidades Activas
-    renderUnits: function() {
-        this.dom.unitCount.innerText = this.state.units.length;
-        if(this.state.units.length === 0) {
-            this.dom.lists.units.innerHTML = '<div class="loading-msg">SIN UNIDADES ACTIVAS</div>';
-            return;
+    feedSociety: function(amount) {
+        if(this.state.water >= this.config.feedCost) {
+            this.state.water -= this.config.feedCost;
+            this.state.societyHealth = Math.min(100, this.state.societyHealth + 15);
+            sfx.success(); 
+            this.updateUI();
+        } else {
+            sfx.error();
         }
+    },
 
+    buyFarmUpgrade: function() {
+        if(this.state.water >= 250) {
+            sfx.success();
+            gameManager.saveProgress({
+                water: this.state.water - 250,
+                unlockedTier: 1, 
+                societyHealth: 100,
+                units: [] 
+            });
+
+            const overlay = document.getElementById('build-overlay');
+            if(overlay) overlay.classList.remove('hidden');
+            
+            sfx.scan();
+
+            setTimeout(() => {
+                window.location.href = "ch1/capitulo1.html";
+            }, 3000);
+        } else {
+            sfx.error();
+        }
+    },
+
+    spawnRadarBlips: function() {
+        if(document.getElementById('view-map').classList.contains('hidden')) return;
+        const blip = document.createElement('div');
+        blip.className = 'radar-blip';
+        const angle = Math.random() * Math.PI * 2;
+        const radius = Math.random() * 40;
+        blip.style.left = (50 + radius * Math.cos(angle)) + '%';
+        blip.style.top = (50 + radius * Math.sin(angle)) + '%';
+        this.dom.radarScreen.appendChild(blip);
+        
+        sfx.sonar(); // Sonido de Sonar Ping
+        
+        setTimeout(() => blip.remove(), 2000);
+    },
+
+    navigateTo: function(view) {
+        if(this.state.step === 0 && view !== 'map') return;
+        if(this.state.step === 1 && view !== 'extraction') return;
+        if(this.state.step === 3 && view === 'society') return; 
+        if(this.state.step === 4 && view !== 'society' && view !== 'extraction') return;
+
+        Object.values(this.dom.views).forEach(el => el.classList.add('hidden'));
+        Object.values(this.dom.nav).forEach(el => el.classList.remove('active'));
+        this.dom.views[view].classList.remove('hidden');
+        this.dom.nav[view].classList.add('active');
+
+        sfx.click(); // Sonido Click
+
+        if(view === 'extraction' && this.state.step === 1) this.setStep(2);
+        if(view === 'society' && this.state.step === 4) this.setStep(5);
+        
+        this.updateUI();
+    },
+
+    updateUI: function() {
+        this.dom.totalWater.innerText = Math.floor(this.state.water);
+        this.dom.socPercent.innerText = Math.floor(this.state.societyHealth);
+        this.dom.socBar.style.width = this.state.societyHealth + "%";
+        this.dom.socBar.style.backgroundColor = this.state.societyHealth < 30 ? "#ef4444" : "#d946ef";
+        this.dom.unitCount.innerText = this.state.units.length;
+    },
+
+    renderUnits: function() {
+        if(this.dom.views.extraction.classList.contains('hidden')) return;
         let html = '';
-        this.state.units.forEach(u => {
-            let tier = this.tiers[u.tierId];
-            let tierGap = this.state.unlockedTier - u.tierId;
-            
-            // Cálculo visual de penalización para mostrar al usuario
-            let penaltyPercent = Math.round((1 - (1 / (1 + (tierGap * this.config.oldFarmInefficiency)))) * 100);
-            let prodReal = tier.prod / (1 + (tierGap * this.config.oldFarmInefficiency));
-            
-            // Aviso de ineficiencia
-            let warning = tierGap > 0 
-                ? `<div style="color:#ef4444; font-size:0.7rem; margin-top:2px;">⚠ INEFICIENTE (Perdida: ${penaltyPercent}%)</div>` 
-                : '';
-
-            // Cálculo del reembolso visual
-            let refund = Math.floor(tier.captureCost * this.config.recycleRefund);
-
-            html += `
-            <div class="unit-card ${u.hp < 30 ? 'critical' : ''}">
-                <div class="unit-main-row">
-                    <div class="card-icon"><i class="fa-solid ${tier.icon}"></i></div>
-                    <div class="card-info">
-                        <div class="card-header">
-                            <span class="unit-name">${u.name}</span>
-                            ${warning}
-                        </div>
-                        <div class="stat-row">
+        if(this.state.units.length === 0) {
+            html = '<div class="loading-msg">SIN UNIDADES</div>';
+        } else {
+            const refundAmount = Math.floor(this.config.captureCost / 2);
+            this.state.units.forEach(u => {
+                const isBoosted = u.boostTimer > 0;
+                const highlightBoost = (this.state.step === 2) ? 'tutorial-highlight tutorial-pointer' : '';
+                
+                html += `
+                <div class="unit-card ${isBoosted ? 'boost-active' : ''}">
+                    <div class="unit-main-row">
+                        <div class="card-icon"><i class="fa-solid fa-bug"></i></div>
+                        <div class="card-info">
+                            <span class="unit-name">${u.name} ${isBoosted ? '⚡' : ''}</span>
                             <div class="mini-bar"><div class="fill" style="width:${u.hp}%"></div></div>
                         </div>
-                        <div style="font-size:0.7rem; color:#777; display:flex; justify-content:space-between;">
-                            <span>PROD: +${prodReal.toFixed(1)} L/s</span>
-                        </div>
                     </div>
-                </div>
-                <div class="unit-actions-row">
-                    <button class="btn-inline btn-heal" onclick="app.actionHeal(${u.id})">
-                        <i class="fa-solid fa-syringe"></i><br>-15L
+                    <div class="unit-actions-top">
+                        <button class="btn-inline btn-heal" onclick="app.actionHeal(${u.id})">
+                            <i class="fa-solid fa-gear"></i> REPARAR (-${this.config.healCost}L)
+                        </button>
+                        <button class="btn-inline btn-boost ${isBoosted?'active':''} ${highlightBoost}" onclick="app.actionBoost(${u.id})">
+                            <i class="fa-solid fa-bolt"></i> BOOST
+                        </button>
+                    </div>
+                    <button class="btn-recycle-wide" onclick="app.actionRecycle(${u.id})">
+                        <i class="fa-solid fa-recycle"></i> RECICLAR (+${refundAmount}L)
                     </button>
-                    <button class="btn-inline btn-boost ${u.boosted?'active':''}" onclick="app.actionBoost(${u.id})">
-                        <i class="fa-solid fa-bolt"></i><br>x2
-                    </button>
-                    <button class="btn-inline btn-recycle" onclick="app.actionRecycle(${u.id})">
-                        <i class="fa-solid fa-recycle"></i><br>+${refund}L
-                    </button>
-                </div>
-            </div>`;
-        });
-        this.dom.lists.units.innerHTML = html + '<div style="height:80px"></div>';
+                </div>`;
+            });
+        }
+        this.dom.lists.units.innerHTML = html;
     },
 
-    // Renderiza la información del Radar
-    renderMapInfo: function() {
-        let tier = this.tiers[this.state.unlockedTier];
-        this.dom.map.cost.innerText = tier.captureCost;
-        this.dom.map.target.innerText = tier.type;
-        this.dom.map.info.innerHTML = `
-            <li>> OBJETIVO: ${tier.name}</li>
-            <li>> CATEGORÍA: ${tier.type}</li>
-            <li>> RIESGO BIOLÓGICO: BAJO</li>
+    renderMapInfo: function(name, cost) {
+        this.dom.captureBtn.innerHTML = `[ INICIAR CAPTURA (-${cost}L) ]`;
+        this.dom.radarTarget.innerText = "SEÑAL";
+        this.dom.scanInfo.innerHTML = `<li>> OBJETIVO: ${name}</li>`;
+        this.dom.captureCost.innerText = cost;
+    },
+
+    renderFarmShop: function() {
+        const canBuy = this.state.water >= 250;
+        this.dom.lists.farms.innerHTML = `
+            <div class="farm-upgrade-card ${canBuy ? 'available' : 'locked'}" style="opacity: ${canBuy ? 1 : 0.5}; border-color: var(--accent-color);">
+                <div class="upgrade-header">
+                    <span class="upgrade-title">GRANJA AVIAR (NIVEL 1)</span>
+                    <span class="upgrade-type type-animal">ANIMAL</span>
+                </div>
+                <div class="upgrade-stats">
+                    <span><i class="fa-solid fa-droplet"></i> +10.0 L/s</span>
+                    <span><i class="fa-solid fa-users"></i> Fin del Tutorial</span>
+                </div>
+                <div class="upgrade-cost" style="color:var(--accent-color)">REQUERIDO: 250 L</div>
+                <button class="btn-buy-upgrade tutorial-highlight tutorial-pointer" onclick="app.buyFarmUpgrade()">
+                    <i class="fa-solid fa-check"></i> CREAR GRANJA AVIAR
+                </button>
+            </div>
         `;
     },
 
-    renderAll: function() {
-        this.updateUI(0, 0);
-        this.renderFarms();
-        this.renderUnits();
-        this.renderMapInfo();
-    },
-
-    // ================= NAVEGACIÓN SPA =================
-    
-    navigateTo: function(view) {
-        // Ocultar todas las vistas
-        Object.values(this.dom.views).forEach(el => el.classList.add('hidden'));
-        this.dom.navBtns.forEach(b => b.classList.remove('active'));
-        
-        // Mostrar la seleccionada
-        if(this.dom.views[view]) {
-            this.dom.views[view].classList.remove('hidden');
-            
-            // Mapeo manual de botones activos
-            let index = 0;
-            if(view === 'extraction') index = 1;
-            if(view === 'map') index = 2;
-            if(view === 'society') index = 3;
-            
-            this.dom.navBtns[index].classList.add('active');
-            
-            // Refrescar render específico
-            if(view === 'farms') this.renderFarms();
-            if(view === 'extraction') this.renderUnits();
-            if(view === 'map') this.renderMapInfo();
-        }
-    },
-
-    // Muestra mensajes de tutorial
-    showTutorial: function(msg) {
-        this.dom.tutorialText.innerText = msg;
-        this.dom.tutorialOverlay.classList.remove('hidden');
-        // Se oculta automáticamente después de 5 segundos
-        setTimeout(() => this.dom.tutorialOverlay.classList.add('hidden'), 5000);
-    },
-
-    // Activa la pantalla de derrota
     triggerGameOver: function() {
         this.state.isGameOver = true;
-        this.dom.gameOverModal.classList.remove('hidden');
-        if(navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 500]);
+        sfx.error();
+        document.getElementById('game-over-modal').classList.remove('hidden');
     },
 
-    // ================= PERSISTENCIA =================
-    saveGame: function() {
-        if(!this.state.isGameOver) {
-            localStorage.setItem('hidra_v3_save', JSON.stringify(this.state));
-        }
-    },
-    loadGame: function() {
-        let d = localStorage.getItem('hidra_v3_save');
-        if(d) {
-            try {
-                // Merge seguro: Combina el save con el estado default para evitar errores si añades variables nuevas
-                let saved = JSON.parse(d);
-                this.state = { ...this.state, ...saved };
-            } catch(e) {
-                console.error("Save file corrupto, iniciando nueva partida.");
-            }
-        }
-    },
     hardReset: function() {
-        if(confirm("¿RESET COMPLETO? Se perderá todo el progreso.")) {
-            localStorage.removeItem('hidra_v3_save');
-            location.reload();
-        }
+        gameManager.clearProgress();
+        location.reload();
+    },
+
+    renderAll: function() {
+        this.updateUI();
+        this.renderUnits();
     }
 };
 
-// Arrancar cuando el DOM esté listo
 window.addEventListener('load', () => app.init());

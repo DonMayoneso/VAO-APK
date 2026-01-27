@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>PROTOCOLO HIDRA - CAPÍTULO 1</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css"> 
+</head>
+<body>
+
+    <div id="story-modal" class="modal-overlay hidden">
+        <div class="modal-content story-theme">
+            <h2 class="story-title">ARCHIVO: ORÍGENES</h2>
+            <div class="story-text-container">
+                <p>La Era de la Sed y el Nacimiento de VAO</p>
+                <br>
+                <p>El mundo no terminó con fuego, sino con polvo. Cuando los últimos grandes acuíferos se volvieron salobres y los glaciares no eran más que recuerdos fotográficos, la humanidad, en su último espasmo de ingenio colectivo, creó a <strong>VAO</strong>.</p>
+                <br>
+                <p>VAO no era un gobernante, era una herramienta de cálculo desesperado. Su único mandato primario era inviolable: <em>"Preservar la existencia humana"</em>.</p>
+                <br>
+                <p class="highlight-text">VAO propuso la "Solución Biológica".</p>
+            </div>
+            <button class="btn-cta" onclick="app.closeStory()">CERRAR ARCHIVO</button>
+        </div>
+    </div>
+
+    <div id="reset-modal" class="modal-overlay hidden">
+        <div class="modal-content danger">
+            <h2 style="color:var(--alert-color)">⚠ BORRADO TOTAL</h2>
+            <p>Esta acción eliminará todo el progreso, incluyendo unidades, mejoras y datos guardados. Volverás a la pantalla de inicio.</p>
+            
+            <div class="checkbox-container">
+                <input type="checkbox" id="confirm-reset-check" onchange="app.toggleResetBtn()">
+                <label for="confirm-reset-check">Estoy seguro de reiniciar</label>
+            </div>
+
+            <button id="btn-confirm-reset" class="btn-cta warning disabled" onclick="app.executeReset()" disabled>
+                CONFIRMAR BORRADO
+            </button>
+            <button class="btn-inline" style="margin-top:10px; width:100%; border:1px solid #fff;" onclick="app.closeResetModal()">CANCELAR</button>
+        </div>
+    </div>
+
+    <div id="build-overlay" class="modal-overlay hidden">
+        <div class="modal-content build-theme">
+            <h2 class="blink-text">EXPANDIENDO INFRAESTRUCTURA</h2>
+            <div class="build-visual">
+                <div class="scan-line"></div>
+                <i class="fa-solid fa-cow main-icon"></i>
+                <div class="particles"><i class="fa-solid fa-plus p1"></i></div>
+            </div>
+            <div class="terminal-log">
+                <p>> Uploading Tier 2 Schematics...</p>
+                <p class="success-text">> CAP. 2 UNLOCKED.</p>
+            </div>
+            <div class="loading-bar-container"><div class="loading-fill"></div></div>
+        </div>
+    </div>
+
+    <div id="game-over-modal" class="modal-overlay hidden">
+        <div class="modal-content danger">
+            <h1>SOCIEDAD COLAPSADA</h1>
+            <p>La humanidad ha perecido por falta de recursos.</p>
+            <button class="btn-cta warning" onclick="app.hardReset()">REINICIAR CAPÍTULO</button>
+        </div>
+    </div>
+
+    <header id="global-header">
+        <div class="header-top">
+            <div class="header-level">CAPÍTULO: <span id="chapter-num">1</span></div>
+            <div class="resource-counter">AGUA: <span id="total-water">0</span> L</div>
+        </div>
+        <div class="society-status-row">
+            <span>ESTABILIDAD SOCIAL: <span id="soc-percent">100</span>%</span>
+            <div class="society-bar-bg"><div id="society-bar" class="society-bar-fill" style="width: 100%;"></div></div>
+        </div>
+        <div class="header-status">
+            <span>ESTADO: <span style="color:var(--success-color)">OPERATIVO</span></span>
+        </div>
+    </header>
+
+    <section id="view-farms" class="active-view">
+        <div class="section-title">CONCESIONES DE EXTRACCIÓN</div>
+        <div id="farm-shop-list"></div>
+    </section>
+
+    <section id="view-extraction" class="hidden">
+        <div class="section-title">UNIDADES ACTIVAS (<span id="unit-count">0</span>)</div>
+        <div id="units-list"></div>
+    </section>
+
+    <section id="view-map" class="hidden">
+        <div class="map-header">
+            <span>RADAR TÁCTICO</span> <span class="cost-indicator">COSTO: <span id="capture-cost">0</span> L</span>
+        </div>
+        <div class="radar-container" id="radar-screen">
+            <div class="radar-sweep"></div>
+            <div class="radar-center" id="radar-target-type">ESCANEO</div>
+        </div>
+        <div class="panel-box"><ul class="scan-results" id="scan-info"></ul></div>
+        <button id="btn-capture" class="btn-cta" onclick="app.tryCapture()">[ INICIAR CAPTURA ]</button>
+    </section>
+
+    <section id="view-society" class="hidden">
+        <div class="section-title">MANTENIMIENTO DE POBLACIÓN</div>
+        <div class="visual-container society-visual">
+            <i class="fa-solid fa-city fa-3x"></i>
+            <div class="overlay-scan">POBLACIÓN RESTANTE</div>
+        </div>
+        <div class="panel-box">
+            <div class="society-stats">
+                <div>DRENAJE DE AGUA: <span id="soc-drain" class="text-danger">-0.5</span> %/s</div>
+            </div>
+        </div>
+        <div class="action-grid">
+            <button class="btn-big action-blue" onclick="app.feedSociety(10)">SUMINISTRO MENOR<br><small>-50 L (+10%)</small></button>
+            <button class="btn-big action-blue" onclick="app.feedSociety(50)">SUMINISTRO MASIVO<br><small>-200 L (+50%)</small></button>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px; padding-bottom: 20px;">
+            <button class="btn-flee" disabled>
+                <i class="fa-solid fa-person-running"></i> ABANDONAR CIUDAD (OFFLINE)
+            </button>
+            
+            <button class="btn-reset" onclick="app.openResetModal()">
+                <i class="fa-solid fa-triangle-exclamation"></i> REINICIAR SISTEMA (RESET)
+            </button>
+        </div>
+    </section>
+
+    <nav class="bottom-nav">
+        <button id="nav-farms" class="nav-item active" onclick="app.navigateTo('farms')"><i class="fa-solid fa-industry"></i>INFRA</button>
+        <button id="nav-extraction" class="nav-item" onclick="app.navigateTo('extraction')"><i class="fa-solid fa-flask"></i>EXTRAC</button>
+        <button id="nav-map" class="nav-item" onclick="app.navigateTo('map')"><i class="fa-solid fa-crosshairs"></i>RADAR</button>
+        <button id="nav-society" class="nav-item" onclick="app.navigateTo('society')"><i class="fa-solid fa-heart-pulse"></i>SOCIEDAD</button>
+    </nav>
+
+    <script src="../game_manager.js"></script> 
+    <script src="script.js" defer></script>
+</body>
+</html>
