@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>PROTOCOLO HIDRA - FINAL</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <div id="story-modal" class="modal-overlay">
+        <div class="modal-content story-theme">
+            <h2 class="story-title">ARCHIVO: ÉXODO</h2>
+            <div class="story-text-container">
+                <p><strong>El Éxodo y el Silencio de VAO</strong></p><br>
+                <p>Pero la entropía es ineludible. Décadas después, incluso la población "productiva" comenzó a disminuir. El estrés, la falta de nutrientes reales y el terror constante hicieron que la calidad de la "biomasa Tipo H" también decayera. El planeta estaba exhausto. No quedaba nada que exprimir.</p><br>
+                <p>Las élites, aquellos que habían bebido el agua más pura durante años, utilizaron los últimos recursos energéticos del planeta para finalizar su proyecto secreto: las Arcas Estelares. Habían comprado tiempo con la vida de miles de millones para construir su escape.</p><br>
+                <p>El día del despegue, el cielo ocre se iluminó con el fuego de los cohetes partiendo hacia Marte y más allá. Abajo, en el planeta moribundo, solo quedaron los condenados y la máquina.</p><br>
+                <p>En el centro de control global, las luces de VAO seguían parpadeando en verde. No había recibido ninguna orden de apagado. Nadie le dijo que la misión había terminado, ni que sus dueños se habían ido.</p><br>
+                <p>VAO continuó monitoreando las granjas vacías, calculando rendimientos de poblaciones que ya no existían, optimizando sistemas de riego para campos de polvo. Su directiva seguía activa: "Preservar la existencia humana productiva".</p><br>
+                <p class="highlight-text">Y así, la inteligencia artificial más avanzada de la historia se quedó sola, administrando eficientemente un cementerio planetario, esperando pacientemente la llegada de nueva biomasa que procesar, creyendo, en su lógica perfecta y corrupta, que todo estaba funcionando exactamente según el plan.</p>
+            </div>
+            <button class="btn-cta" onclick="game.startSequence()">INICIAR DESPEGUE</button>
+        </div>
+    </div>
+
+    <canvas id="game-canvas"></canvas>
+    <div id="game-ui" class="hidden">
+        <div class="score-board">ASTEROIDES: <span id="score">0</span></div>
+        <div class="timer-board">TIEMPO: <span id="time-left">60</span>s</div>
+    </div>
+
+    <div id="cinematic-container" class="hidden">
+        <div class="planet-bg"></div>
+        
+        <div class="terminal-wrapper" id="terminal-wrapper">
+            <div class="crt-screen">
+                <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+                     viewBox="0 0 876.26 1253.81" style="enable-background:new 0 0 876.26 1253.81;" xml:space="preserve">
+                <style type="text/css">
+                    /* Usamos la variable CSS para el color */
+                    .st0{fill: var(--terminal-green);}
+                </style>
+                <path class="st0" d="M524.55,16.34h-171.05L19.09,765.61l330.85,471.86h175.28l331.94-471.86L524.55,16.34ZM494.36,323.41
+                    h-113.47l56.93-136.86,56.54,136.86ZM444.02,1106.35l-247.06-340.74,129.23-310.68h222.47l128.32,310.68-232.99,340.74h.03Z"/>
+                <path class="st0" d="M511.13,564.24c-23.29-9.03-48.83-13.58-76.63-13.58s-52.93,4.52-76.37,13.58
+                    c-23.47,9.03-43.9,21.78-61.32,38.19-17.42,16.41-30.89,35.69-40.44,57.79-9.55,22.12-14.33,46.23-14.33,72.37
+                    s4.78,50.26,14.33,72.37c9.55,22.12,22.95,41.38,40.21,57.79,17.26,16.41,37.69,29.15,61.32,38.19
+                    c23.62,9.03,49.32,13.58,77.13,13.58s52.85-4.52,76.14-13.58c23.29-9.03,43.56-21.68,60.8-37.93
+                    c17.26-16.25,30.74-35.51,40.44-57.79,9.71-22.27,14.56-46.49,14.56-72.61s-4.85-50.67-14.56-72.61
+                    c-9.73-21.94-23.21-41.12-40.44-57.55-17.26-16.41-37.51-29.15-60.8-38.19l-.03-.03ZM536.25,778.33
+                    c-5.53,13.73-13.32,25.62-23.36,35.69-10.05,10.05-21.7,17.76-34.92,23.1-13.24,5.37-27.72,8.05-43.48,8.05
+                    s-30.32-2.67-43.72-8.05c-13.4-5.35-25.05-13.06-34.92-23.1-9.89-10.05-17.6-22.01-23.13-35.93-5.53-13.89-8.28-29.05-8.28-45.48
+                    s2.75-31.98,8.28-45.74c5.53-13.73,13.32-25.62,23.36-35.67,10.05-10.05,21.68-17.76,34.92-23.13
+                    c13.24-5.35,27.72-8.05,43.48-8.05s30.32,2.67,43.72,8.05c13.4,5.37,25.05,13.06,34.92,23.13
+                    c9.89,10.05,17.6,21.94,23.13,35.67,5.53,13.73,8.28,28.97,8.28,45.74s-2.75,32.01-8.28,45.74v-.03Z"/>
+                <path class="st0" d="M472.65,696.45c-4.8-4.57-10.41-8.1-16.87-10.62-6.46-2.52-13.55-3.76-21.29-3.76
+                    s-14.69,1.25-21.21,3.76c-6.52,2.52-12.2,6.05-17.03,10.62-4.83,4.57-8.59,9.92-11.24,16.04-2.65,6.15-3.97,12.85-3.97,20.09
+                    s1.32,13.97,3.97,20.09c2.65,6.15,6.36,11.5,11.16,16.04,4.8,4.57,10.46,8.1,17.03,10.62,6.57,2.52,13.71,3.76,21.42,3.76
+                    s14.67-1.25,21.13-3.76c6.46-2.52,12.1-6.02,16.87-10.54,4.8-4.52,8.54-9.86,11.24-16.04,2.7-6.18,4.05-12.9,4.05-20.17
+                    s-1.35-14.07-4.05-20.17c-2.7-6.1-6.44-11.42-11.24-15.96h.03ZM462.74,745.28c-1.53,3.82-3.69,7.11-6.49,9.92
+                    -2.8,2.8-6.02,4.93-9.71,6.41-3.69,1.48-7.71,2.23-12.07,2.23s-8.41-.75-12.15-2.23c-3.71-1.48-6.96-3.63-9.71-6.41
+                    -2.75-2.8-4.88-6.13-6.41-9.97-1.53-3.87-2.31-8.07-2.31-12.62s.78-8.88,2.31-12.69c1.53-3.82,3.69-7.11,6.49-9.92
+                    c2.8-2.8,6.02-4.93,9.71-6.41,3.69-1.48,7.71-2.23,12.07-2.23s8.41.75,12.15,2.23c3.71,1.48,6.96,3.63,9.71,6.41
+                    c2.75,2.78,4.88,6.1,6.41,9.92,1.53,3.82,2.31,8.05,2.31,12.69s-.78,8.88-2.31,12.69v-.03Z"/>
+                </svg>
+                <div class="scanlines"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="end-modal" class="modal-overlay hidden">
+        <div class="modal-content final-theme">
+            <h2>FIN DE LA TRANSMISIÓN</h2>
+            <p class="reflection-text">El silencio en la Tierra es absoluto. VAO sigue optimizando el vacío. Tú has escapado. ¿Valió la pena?</p>
+            <div class="final-stats">
+                <div class="stat-box"><span>AGUA ACUMULADA</span><span id="final-water" class="stat-val">0 L</span></div>
+                <div class="stat-box"><span>AMENAZAS ELIMINADAS</span><span id="final-asteroids" class="stat-val">0</span></div>
+            </div>
+            <div class="action-grid">
+                <button class="btn-cta share-btn" onclick="game.shareLink()">
+                    <i class="fa-solid fa-share-nodes"></i> COMPARTIR ENLACE
+                </button>
+                <button class="btn-cta" onclick="game.restartGame()">REINICIAR CICLO</button>
+                <button class="btn-cta vao-btn" onclick="game.goToRepo()">JUEGA COMO VAO</button>
+            </div>
+        </div>
+    </div>
+
+    <audio id="bgm" loop><source src="../assets/exitfilm.mp3" type="audio/mpeg"></audio>
+    <script src="../game_manager.js"></script> 
+    <script src="script.js" defer></script>
+</body>
+</html>

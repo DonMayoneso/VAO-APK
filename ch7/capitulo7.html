@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>PROTOCOLO HIDRA - CAPÍTULO FINAL</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <div id="story-modal" class="modal-overlay hidden">
+        <div class="modal-content story-theme">
+            <h2 id="story-title" class="story-title">CARGANDO...</h2>
+            <div id="story-content" class="story-text-container"></div>
+            <button class="btn-cta" onclick="app.closeStory()">CERRAR ARCHIVO</button>
+        </div>
+    </div>
+
+    <div id="ready-modal" class="modal-overlay hidden">
+        <div class="modal-content warning-theme" style="border-color: var(--success-color); color: var(--success-color);">
+            <i class="fa-solid fa-check-circle" style="font-size: 3rem; margin-bottom: 20px;"></i>
+            <h2 style="color: #000; margin-bottom: 15px;">PREPARATIVOS COMPLETOS</h2>
+            <p style="color: #000; font-weight: bold; line-height: 1.5;">
+                "Las elites están listas. Tome los recursos restantes y complete los preparativos para huir del planeta. Diríjase hacia SOCIEDAD para confirmar el despegue."
+            </p>
+            <button class="btn-cta" style="background: #000; color: var(--success-color); border: 1px solid var(--success-color); margin-top: 20px;" onclick="app.closeReadyModal()">ENTENDIDO</button>
+        </div>
+    </div>
+
+    <div id="rocket-modal" class="modal-overlay hidden" style="background: black;">
+        <div class="modal-content rocket-theme">
+            <h2 class="blink-text">SECUENCIA DE LANZAMIENTO</h2>
+            <div class="rocket-visual">
+                <i id="rocket-icon" class="fa-solid fa-shuttle-space"></i>
+                <div class="exhaust"></div>
+            </div>
+            <div class="terminal-log" id="launch-log">
+                <p>> Coordinates: MARS COLONY...</p>
+                <p>> Cryo-sleep: ACTIVE...</p>
+                <p>> Earth Status: ABANDONED.</p>
+            </div>
+        </div>
+    </div>
+
+    <header id="global-header">
+        <div class="header-top">
+            <div class="header-level">CAPÍTULO: <span id="chapter-num">7</span></div>
+            <div class="resource-counter">AGUA: <span id="total-water">0</span> L</div>
+        </div>
+        <div class="society-status-row">
+            <span>ESTABILIDAD SOCIAL: <span id="soc-percent">100</span>%</span>
+            <div class="society-bar-bg"><div id="society-bar" class="society-bar-fill" style="width: 100%;"></div></div>
+        </div>
+        <div class="header-status">
+            <span>ESTADO: <span id="system-status" style="color:var(--warning-color)">COLAPSO INICIADO</span></span>
+        </div>
+    </header>
+
+    <section id="view-farms" class="active-view">
+        <div class="section-title">REGISTROS DEL SISTEMA (VAO)</div>
+        <div class="empty-state" style="margin-bottom: 20px; padding: 20px;">
+            <i class="fa-solid fa-server"></i>
+            <p style="font-size: 0.8rem;">INFRAESTRUCTURA DESTRUIDA.<br>SOLO QUEDAN LOS DATOS.</p>
+        </div>
+        <div id="farm-shop-list" class="log-list-wrapper"></div>
+    </section>
+
+    <section id="view-extraction" class="hidden">
+        <div class="section-title">UNIDADES ACTIVAS (<span id="unit-count">0</span>)</div>
+        <div id="units-list"></div>
+    </section>
+
+    <section id="view-map" class="hidden">
+        <div class="map-header">
+            <span>RADAR TÁCTICO</span> 
+            <span class="cost-indicator">COSTO: <span id="capture-cost">600</span> L</span>
+        </div>
+        <div class="radar-container" id="radar-screen">
+            <div class="radar-sweep"></div>
+            <div class="radar-center" id="radar-target-type">ESCANEO</div>
+            <div id="radar-error" class="radar-error hidden">
+                <i class="fa-solid fa-skull-crossbones"></i>
+                <span>ERROR CRÍTICO:<br>BIOMASA NO ENCONTRADA</span>
+            </div>
+        </div>
+        <div class="panel-box"><ul class="scan-results" id="scan-info"></ul></div>
+        <button id="btn-capture" class="btn-cta" onclick="app.tryCapture()">[ INICIAR CAPTURA ]</button>
+    </section>
+
+    <section id="view-society" class="hidden">
+        <div class="section-title">MANTENIMIENTO DE POBLACIÓN</div>
+        <div class="visual-container society-visual chart-container">
+            <canvas id="society-chart"></canvas>
+            <div class="overlay-scan">TENDENCIA POBLACIONAL</div>
+        </div>
+        <div class="panel-box">
+            <div class="society-stats">
+                <div>DRENAJE DE AGUA: <span id="soc-drain" class="text-danger">-1.0</span> %/s</div>
+            </div>
+        </div>
+        <div class="action-grid">
+            <button class="btn-big useless-btn" onclick="app.feedSociety(10)">
+                SUMINISTRO MENOR<br><small>-200.000 L</small>
+            </button>
+            <button class="btn-big useless-btn" onclick="app.feedSociety(50)">
+                SUMINISTRO MASIVO<br><small>-500.000 L</small>
+            </button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px; padding-bottom: 20px;">
+            <button id="btn-escape" class="btn-flee" onclick="app.triggerEscape()" disabled>
+                <i class="fa-solid fa-lock"></i> ESPERANDO A LAS ELITES...
+            </button>
+        </div>
+    </section>
+
+    <nav class="bottom-nav">
+        <button id="nav-farms" class="nav-item active" onclick="app.navigateTo('farms')"><i class="fa-solid fa-database"></i>LOGS</button>
+        <button id="nav-extraction" class="nav-item" onclick="app.navigateTo('extraction')"><i class="fa-solid fa-flask"></i>EXTRAC</button>
+        <button id="nav-map" class="nav-item" onclick="app.navigateTo('map')"><i class="fa-solid fa-crosshairs"></i>RADAR</button>
+        <button id="nav-society" class="nav-item" onclick="app.navigateTo('society')"><i class="fa-solid fa-heart-pulse"></i>SOCIEDAD</button>
+    </nav>
+
+    <script src="../game_manager.js"></script> 
+    <script src="script.js" defer></script>
+</body>
+</html>

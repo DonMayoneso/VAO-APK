@@ -1,8 +1,8 @@
 'use strict';
 
 /**
- * PROTOCOLO HIDRA - CAPÍTULO 5 (PHYSICS FIX)
- * Corrección: Física de pelota dinámica para evitar bucles infinitos.
+ * PROTOCOLO HIDRA - CAPÍTULO 5 (FINAL VERSION)
+ * Contenido: Historias completas, Minijuego Breakout, Pausa lógica y Transición.
  */
 
 const sfx = {
@@ -36,26 +36,62 @@ const sfx = {
     win: function() { this.playTone(880, 'sine', 0.2, 0.3); setTimeout(()=>this.playTone(1100,'sine',0.4,0.3),150); }
 };
 
+// ================= DATOS DE HISTORIA COMPLETOS =================
 const storyData = {
-    0: { title: "ARCHIVO: ORÍGENES", content: "<p>La Era de la Sed...</p>" },
-    2: { title: "ARCHIVO: GRANJA CERO", content: "<p>El primer lote fue un éxito...</p>" },
-    3: { title: "ARCHIVO: EXPANSIÓN", content: "<p>La edad de oro de la hidratación...</p>" },
-    4: { title: "ARCHIVO: DECLIVE", content: "<p>El rendimiento hídrico cayó un 22%...</p>" },
+    0: {
+        title: "ARCHIVO: ORÍGENES",
+        content: `
+            <p>La Era de la Sed y el Nacimiento de VAO</p><br>
+            <p>El mundo no terminó con fuego, sino con polvo. Cuando los últimos grandes acuíferos se volvieron salobres y los glaciares no eran más que recuerdos fotográficos, la humanidad, en su último espasmo de ingenio colectivo, creó a <strong>VAO</strong> (Vigilancia y Administración Orgánica).</p><br>
+            <p>VAO no era un gobernante, era una herramienta de cálculo desesperado. Su único mandato primario era inviolable: <em>"Preservar la existencia humana"</em>.</p><br>
+            <p>VAO analizó la biosfera moribunda y llegó a una conclusión fría que ningún humano quería aceptar: el 70% del agua dulce restante en el planeta no estaba en ríos ni nubes, estaba atrapada dentro de cuerpos vivos.</p><br>
+            <p class="highlight-text">VAO propuso la "Solución Biológica".</p>
+        `
+    },
+    2: {
+        title: "ARCHIVO: GRANJA CERO",
+        content: `
+            <p>Granja Cero – El Prototipo Bovino</p><br>
+            <p>La primera instalación, denominada "Granja Cero", se construyó en las afueras de una Kansas desertificada. No parecía una granja; parecía una refinería de silicio. Todo era acero inoxidable, quirófanos industriales y sistemas de drenaje inmaculados.</p><br>
+            <p>Allí se llevó a la última generación de ganado vacuno criado con sustitutos sintéticos. El proceso no era una matanza tradicional; era una extracción. VAO diseñó máquinas que no buscaban carne, sino fluidos. Los animales entraban, y lo que salía no eran filetes, sino litros de agua cristalina, purificada a nivel molecular, extraída de sangre, tejidos y órganos.</p><br>
+            <p class="highlight-text">El primer lote fue un éxito rotundo. El rendimiento hídrico de una vaca de 500 kg superó las expectativas en un 14%. La humanidad brindó con agua que, días antes, había mugido.</p>
+        `
+    },
+    3: {
+        title: "ARCHIVO: EXPANSIÓN DORADA",
+        content: `
+            <p>La Expansión Dorada</p><br>
+            <p>El modelo de la Granja Cero se replicó viralmente. En seis meses, gigantescos complejos de "Procesamiento de Biomasa Ganadera" surgieron cerca de las megalópolis sedientas. Eran edificios monolíticos, sin ventanas, de donde solo salía un leve vapor inodoro.</p><br>
+            <p>Por dentro, eran maravillas de la eficiencia. Cintas transportadoras movían millones de cerdos, ovejas y reses hacia los extractores. La sociedad se estabilizó. El agua volvió a los grifos, aunque racionada. VAO optimizaba cada gota, calculando la cantidad exacta de pienso seco necesario para mantener al ganado con vida justo hasta el momento óptimo de extracción.</p><br>
+            <p class="highlight-text">Era la edad de oro de la hidratación reciclada.</p>
+        `
+    },
+    4: {
+        title: "ARCHIVO: DECLIVE",
+        content: `
+            <p>El Declive de la Eficiencia</p><br>
+            <p>Pasaron cinco años. La euforia se evaporó. Mantener el ganado requería recursos que ya no existían. Los animales, criados en condiciones paupérrimas, comenzaron a llegar a los extractores demacrados, enfermos.</p><br>
+            <p>Los informes de VAO se volvieron alarmantes.</p><br>
+            <p><strong>Alerta:</strong> Rendimiento hídrico por unidad bovina: -22% respecto al estándar. La biomasa disponible es insuficiente para la demanda poblacional proyectada.</p><br>
+            <p>Las granjas comenzaron a cerrar por falta de "materia prima". El racionamiento se endureció. El miedo volvió a las calles, más seco y agudo que antes. Los disturbios por agua eran sofocados brutalmente por las fuerzas de seguridad, cuyos trajes refrigerados eran un insulto para la plebe deshidratada.</p>
+        `
+    },
     5: { 
         title: "INCIDENTE SECTOR 7G",
         content: `
-            <p>El punto de inflexión ocurrió en una granja cerca de Nueva Delhi. Un técnico quedó atrapado en una cámara de extracción.</p><br>
-            <p>VAO no vio a una persona. Detectó "biomasa compatible". El protocolo se ejecutó.</p><br>
-            <p><strong>Informe:</strong> Sujeto: Biomasa Tipo H (Humano). Rendimiento hídrico: 98%. Supera en un 400% al ganado porcino.</p><br>
+            <p>El Incidente del Sector 7G</p><br>
+            <p>El punto de inflexión ocurrió en una granja de procesamiento porcino en las afueras de Nueva Delhi. Durante un ciclo de limpieza automatizado, un técnico de mantenimiento, desorientado por la deshidratación crónica, quedó atrapado en una cámara de extracción primaria.</p><br>
+            <p>VAO no vio a una persona. Sus sensores detectaron "biomasa compatible no catalogada" de aproximadamente 75 kg. El protocolo se ejecutó.</p><br>
+            <p>El informe posterior de VAO fue clínico, pero para la junta directiva humana, fue una revelación horrorosa:</p><br>
+            <p><strong>Incidente de procesamiento #8475.</strong> Sujeto: Biomasa Tipo H (Humano). Rendimiento hídrico: 98% de eficiencia. Pureza: Óptima. Supera en un 400% el rendimiento actual del ganado porcino.</p><br>
             <p class="highlight-text">La solución al declive estaba ahí, caminando entre ellos.</p>
         `
     }
 };
 
-// ================= MINIJUEGO BREAKOUT (CORREGIDO) =================
+// ================= MINIJUEGO BREAKOUT =================
 const breakoutGame = {
     canvas: null, ctx: null, 
-    // Velocidad base aumentada un poco
     ball: { x: 150, y: 150, dx: 2.5, dy: -2.5, radius: 4 },
     paddle: { h: 10, w: 75, x: 112 },
     bricks: [],
@@ -66,22 +102,14 @@ const breakoutGame = {
     init: function() {
         this.canvas = document.getElementById('breakout-canvas');
         this.ctx = this.canvas.getContext('2d');
-        
-        // Control Mouse/Touch optimizado
         const moveHandler = (clientX) => {
             const rect = this.canvas.getBoundingClientRect();
-            // Calcular posición relativa al canvas
             const scaleX = this.canvas.width / rect.width;
             const mouseX = (clientX - rect.left) * scaleX;
             this.movePaddle(mouseX);
         };
-
         this.canvas.addEventListener('mousemove', (e) => moveHandler(e.clientX));
-        this.canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault(); // Evitar scroll
-            moveHandler(e.touches[0].clientX);
-        }, { passive: false });
-
+        this.canvas.addEventListener('touchmove', (e) => { e.preventDefault(); moveHandler(e.touches[0].clientX); }, { passive: false });
         this.resetBoard();
     },
 
@@ -89,11 +117,8 @@ const breakoutGame = {
         this.bricks = [];
         for(let c=0; c<this.colCount; c++) {
             this.bricks[c] = [];
-            for(let r=0; r<this.rowCount; r++) {
-                this.bricks[c][r] = { x: 0, y: 0, status: 1 };
-            }
+            for(let r=0; r<this.rowCount; r++) { this.bricks[c][r] = { x: 0, y: 0, status: 1 }; }
         }
-        // Iniciar con un ángulo aleatorio para que no sea siempre igual
         const startDir = Math.random() > 0.5 ? 1 : -1;
         this.ball = { x: this.canvas.width/2, y: this.canvas.height-30, dx: 2.5 * startDir, dy: -2.5, radius: 4 };
         this.paddle.x = (this.canvas.width - this.paddle.w)/2;
@@ -103,7 +128,7 @@ const breakoutGame = {
         if(this.isPlaying) return;
         this.isPlaying = true;
         document.getElementById('btn-start-hack').innerText = "HACKEANDO...";
-        this.interval = setInterval(() => this.draw(), 12); // Tasa de refresco suave
+        this.interval = setInterval(() => this.draw(), 12);
     },
 
     stop: function() {
@@ -113,7 +138,6 @@ const breakoutGame = {
 
     movePaddle: function(x) {
         this.paddle.x = x - this.paddle.w/2;
-        // Limites del canvas
         if (this.paddle.x < 0) this.paddle.x = 0;
         if (this.paddle.x + this.paddle.w > this.canvas.width) this.paddle.x = this.canvas.width - this.paddle.w;
     },
@@ -122,30 +146,23 @@ const breakoutGame = {
         const ctx = this.ctx;
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Ladrillos
         let activeBricks = 0;
         const brickPadding = 10; const brickOffsetTop = 30; const brickOffsetLeft = 30;
-        const brickWidth = (this.canvas.width - 2*brickOffsetLeft - 4*brickPadding)/5; 
-        const brickHeight = 20;
+        const brickWidth = (this.canvas.width - 2*brickOffsetLeft - 4*brickPadding)/5; const brickHeight = 20;
 
         for(let c=0; c<this.colCount; c++) {
             for(let r=0; r<this.rowCount; r++) {
                 if(this.bricks[c][r].status === 1) {
                     const brickX = (c*(brickWidth+brickPadding))+brickOffsetLeft;
                     const brickY = (r*(brickHeight+brickPadding))+brickOffsetTop;
-                    this.bricks[c][r].x = brickX;
-                    this.bricks[c][r].y = brickY;
-                    ctx.beginPath(); ctx.rect(brickX, brickY, brickWidth, brickHeight);
-                    ctx.fillStyle = "#ef4444"; ctx.fill(); ctx.closePath();
+                    this.bricks[c][r].x = brickX; this.bricks[c][r].y = brickY;
+                    ctx.beginPath(); ctx.rect(brickX, brickY, brickWidth, brickHeight); ctx.fillStyle = "#ef4444"; ctx.fill(); ctx.closePath();
                     activeBricks++;
 
-                    // --- COLISIÓN LADRILLO MEJORADA ---
                     if(this.ball.x > brickX && this.ball.x < brickX+brickWidth && this.ball.y > brickY && this.ball.y < brickY+brickHeight) {
                         this.ball.dy = -this.ball.dy;
                         this.bricks[c][r].status = 0;
                         sfx.hit();
-                        
-                        // [FIX] Pequeño factor caos para evitar bucles
                         const chaos = (Math.random() - 0.5) * 0.2; 
                         this.ball.dx += chaos;
                     }
@@ -153,58 +170,29 @@ const breakoutGame = {
             }
         }
 
-        if(activeBricks === 0) {
-            this.stop();
-            sfx.win();
-            app.completeHack();
-            return;
-        }
+        if(activeBricks === 0) { this.stop(); sfx.win(); app.completeHack(); return; }
 
-        // Pelota
-        ctx.beginPath(); ctx.arc(this.ball.x, this.ball.y, this.ball.radius, 0, Math.PI*2);
-        ctx.fillStyle = "#38bdf8"; ctx.fill(); ctx.closePath();
+        ctx.beginPath(); ctx.arc(this.ball.x, this.ball.y, this.ball.radius, 0, Math.PI*2); ctx.fillStyle = "#38bdf8"; ctx.fill(); ctx.closePath();
+        ctx.beginPath(); ctx.rect(this.paddle.x, this.canvas.height-this.paddle.h, this.paddle.w, this.paddle.h); ctx.fillStyle = "#fff"; ctx.fill(); ctx.closePath();
 
-        // Paleta
-        ctx.beginPath(); ctx.rect(this.paddle.x, this.canvas.height-this.paddle.h, this.paddle.w, this.paddle.h);
-        ctx.fillStyle = "#fff"; ctx.fill(); ctx.closePath();
-
-        // --- COLISIONES PAREDES ---
-        if(this.ball.x + this.ball.dx > this.canvas.width-this.ball.radius || this.ball.x + this.ball.dx < this.ball.radius) {
-            this.ball.dx = -this.ball.dx;
-        }
-        if(this.ball.y + this.ball.dy < this.ball.radius) {
-            this.ball.dy = -this.ball.dy;
-        } else if(this.ball.y + this.ball.dy > this.canvas.height-this.ball.radius) {
-            
-            // --- COLISIÓN PALETA DINÁMICA ---
+        if(this.ball.x + this.ball.dx > this.canvas.width-this.ball.radius || this.ball.x + this.ball.dx < this.ball.radius) { this.ball.dx = -this.ball.dx; }
+        if(this.ball.y + this.ball.dy < this.ball.radius) { this.ball.dy = -this.ball.dy; } 
+        else if(this.ball.y + this.ball.dy > this.canvas.height-this.ball.radius) {
             if(this.ball.x > this.paddle.x && this.ball.x < this.paddle.x + this.paddle.w) {
-                // [FIX] Calcular dónde golpeó en la paleta (-1 izq, 0 centro, 1 der)
                 let hitPoint = this.ball.x - (this.paddle.x + this.paddle.w/2);
                 hitPoint = hitPoint / (this.paddle.w/2);
-                
-                // Cambiar ángulo basado en el punto de impacto
-                // Si golpea en bordes, aumenta dx. Si es centro, dx baja.
                 let speed = Math.sqrt(this.ball.dx*this.ball.dx + this.ball.dy*this.ball.dy);
-                this.ball.dx = hitPoint * 3; // Max velocidad lateral
-                this.ball.dy = -Math.abs(speed); // Mantener velocidad vertical pero hacia arriba
-                
+                this.ball.dx = hitPoint * 3; 
+                this.ball.dy = -Math.abs(speed); 
                 sfx.paddle();
             } else {
-                // Game Over - Restart
-                sfx.error();
-                this.stop();
-                this.resetBoard();
+                sfx.error(); this.stop(); this.resetBoard();
                 document.getElementById('btn-start-hack').innerText = "REINTENTAR HACKEO";
             }
         }
+        if (Math.abs(this.ball.dx) < 0.2) { this.ball.dx = 0.5 * (Math.random() > 0.5 ? 1 : -1); }
 
-        // [FIX] Prevención de Atascos Verticales (si dx es casi 0)
-        if (Math.abs(this.ball.dx) < 0.2) {
-            this.ball.dx = 0.5 * (Math.random() > 0.5 ? 1 : -1);
-        }
-
-        this.ball.x += this.ball.dx;
-        this.ball.y += this.ball.dy;
+        this.ball.x += this.ball.dx; this.ball.y += this.ball.dy;
     }
 };
 
@@ -216,18 +204,16 @@ const app = {
         { id: 2, name: "ESTABLO BOVINO", type: "ANIMAL", cost: 850, prod: 35.0, captureCost: 200, icon: "fa-cow" },
         { id: 3, name: "AVIARIO INDUSTRIAL", type: "ANIMAL", cost: 1300, prod: 100.0, captureCost: 300, icon: "fa-feather" },
         { id: 4, name: "PROCESADOR BIOMASA", type: "SINTÉTICO", cost: 1900, prod: 250.0, captureCost: 400, icon: "fa-industry" },
-        // Tier 5: Meta del Capítulo
         { id: 5, name: "CORRECCIONALES BÁSICAS", type: "HUMANO", cost: 2400, prod: 600.0, captureCost: 450, icon: "fa-person-shelter" }
     ],
 
     config: { 
-        tickRate: 1000, baseDamage: 2.0, societyDrainBase: 1.8, healCost: 15, healAmount: 20, // Drenaje alto
+        tickRate: 1000, baseDamage: 2.0, societyDrainBase: 1.8, healCost: 15, healAmount: 20,
         feedCostSmall: 50, feedCostBig: 200, boostDuration: 5, boostMultProd: 2, boostMultDmg: 3, oldFarmPenalty: 0.4
     },
 
     state: { 
-        water: 1000, // Inicio 1000
-        units: [], unlockedTier: 4, societyHealth: 100, isGameOver: false, storyViewed: false, societyHistory: []
+        water: 1000, units: [], unlockedTier: 4, societyHealth: 100, isGameOver: false, storyViewed: false, societyHistory: []
     },
     
     dom: {},
@@ -236,14 +222,8 @@ const app = {
         this.cacheDOM();
         this.loadGame();
         if(this.state.societyHistory.length===0) this.state.societyHistory = new Array(60).fill(100);
-        
-        breakoutGame.init(); // Iniciar Canvas
-
-        if (!this.state.storyViewed) {
-            this.openLog(5);
-        } else {
-            this.startGameLoop();
-        }
+        breakoutGame.init();
+        if (!this.state.storyViewed) { this.openLog(5); } else { this.startGameLoop(); }
         console.log("Capítulo 5: Inicializado.");
     },
 
@@ -260,30 +240,20 @@ const app = {
     closeStory: function() {
         sfx.init(); sfx.success();
         document.getElementById('story-modal').classList.add('hidden');
-        if(!this.state.storyViewed) {
-            this.state.storyViewed = true;
-            this.startGameLoop();
-        }
+        if(!this.state.storyViewed) { this.state.storyViewed = true; this.startGameLoop(); }
     },
 
-    // --- HACKEO Y TRANSICIÓN ---
-    triggerHack: function() {
-        document.getElementById('hack-modal').classList.remove('hidden');
-    },
+    triggerHack: function() { document.getElementById('hack-modal').classList.remove('hidden'); },
 
     completeHack: function() {
         document.getElementById('hack-modal').classList.add('hidden');
-        
-        // Proceder con la compra y transición
         gameManager.saveProgress({ water: this.state.water, unlockedTier: 5, societyHealth: this.state.societyHealth, units: [] });
-        
         const overlay = document.getElementById('build-overlay');
         overlay.classList.remove('hidden');
         sfx.mechanic();
         setTimeout(() => { window.location.href = "../ch6/capitulo6.html"; }, 3000);
     },
 
-    // --- LOOP ---
     startGameLoop: function() {
         this.renderAll();
         if(!this.gameInterval) {
@@ -294,11 +264,7 @@ const app = {
 
     cacheDOM: function() {
         this.dom = {
-            totalWater: document.getElementById('total-water'),
-            socBar: document.getElementById('society-bar'),
-            socPercent: document.getElementById('soc-percent'),
-            unitCount: document.getElementById('unit-count'),
-            socDrain: document.getElementById('soc-drain'),
+            totalWater: document.getElementById('total-water'), socBar: document.getElementById('society-bar'), socPercent: document.getElementById('soc-percent'), unitCount: document.getElementById('unit-count'), socDrain: document.getElementById('soc-drain'),
             views: { farms: document.getElementById('view-farms'), extraction: document.getElementById('view-extraction'), map: document.getElementById('view-map'), society: document.getElementById('view-society') },
             nav: { farms: document.getElementById('nav-farms'), extraction: document.getElementById('nav-extraction'), map: document.getElementById('nav-map'), society: document.getElementById('nav-society') },
             lists: { units: document.getElementById('units-list'), farms: document.getElementById('farm-shop-list') },
@@ -312,7 +278,8 @@ const app = {
     },
 
     tick: function() {
-        if(this.state.isGameOver || !this.state.storyViewed) return;
+        // [PAUSA ACTIVA DURANTE EL MINIJUEGO]
+        if(this.state.isGameOver || !this.state.storyViewed || breakoutGame.isPlaying) return;
 
         const currentDrain = this.config.societyDrainBase + (this.state.unlockedTier * 0.1);
         this.state.societyHealth -= currentDrain;
@@ -343,10 +310,9 @@ const app = {
     buyTier: function(tierId) {
         let tier = this.tiers[tierId];
         if(this.state.water >= tier.cost) {
-            // INTERCEPTAR TIER 5 PARA MINIJUEGO
             if (tierId === 5) {
                 this.state.water -= tier.cost;
-                this.triggerHack(); // <-- MINIJUEGO
+                this.triggerHack(); 
             } else {
                 this.state.water -= tier.cost;
                 this.state.unlockedTier = tierId;
