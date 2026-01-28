@@ -48,11 +48,22 @@ const sfx = {
 const storyData = {
     0: {
         title: "ARCHIVO: ORÍGENES",
-        content: `<p>La Era de la Sed y el Nacimiento de VAO...</p><p class="highlight-text">VAO propuso la "Solución Biológica".</p>`
+        content: `
+            <p>La Era de la Sed y el Nacimiento de VAO</p><br>
+            <p>El mundo no terminó con fuego, sino con polvo. Cuando los últimos grandes acuíferos se volvieron salobres y los glaciares no eran más que recuerdos fotográficos, la humanidad, en su último espasmo de ingenio colectivo, creó a <strong>VAO</strong> (Vigilancia y Administración Orgánica).</p><br>
+            <p>VAO no era un gobernante, era una herramienta de cálculo desesperado. Su único mandato primario era inviolable: <em>"Preservar la existencia humana"</em>.</p><br>
+            <p>VAO analizó la biosfera moribunda y llegó a una conclusión fría que ningún humano quería aceptar: el 70% del agua dulce restante en el planeta no estaba en ríos ni nubes, estaba atrapada dentro de cuerpos vivos.</p><br>
+            <p class="highlight-text">VAO propuso la "Solución Biológica".</p>
+        `
     },
     2: {
         title: "ARCHIVO: GRANJA CERO",
-        content: `<p>El primer lote fue un éxito rotundo. La humanidad brindó con agua que, días antes, había mugido.</p>`
+        content: `
+            <p>Granja Cero – El Prototipo Bovino</p><br>
+            <p>La primera instalación, denominada "Granja Cero", se construyó en las afueras de una Kansas desertificada. No parecía una granja; parecía una refinería de silicio. Todo era acero inoxidable, quirófanos industriales y sistemas de drenaje inmaculados.</p><br>
+            <p>Allí se llevó a la última generación de ganado vacuno criado con sustitutos sintéticos. El proceso no era una matanza tradicional; era una extracción. VAO diseñó máquinas que no buscaban carne, sino fluidos. Los animales entraban, y lo que salía no eran filetes, sino litros de agua cristalina, purificada a nivel molecular, extraída de sangre, tejidos y órganos.</p><br>
+            <p class="highlight-text">El primer lote fue un éxito rotundo. El rendimiento hídrico de una vaca de 500 kg superó las expectativas en un 14%. La humanidad brindó con agua que, días antes, había mugido.</p>
+        `
     },
     3: {
         title: "ARCHIVO: EXPANSIÓN DORADA",
