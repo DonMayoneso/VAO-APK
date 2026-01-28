@@ -1,23 +1,40 @@
 'use strict';
 
 /**
- * PROTOCOLO HIDRA - CAPÍTULO 2 (CON GRÁFICO DE BOLSA)
+ * PROTOCOLO HIDRA - CAPÍTULO 2 (REPARADO)
+ * Fix: Audio Context Autoplay Policy
  */
 
 // ================= MOTOR DE AUDIO =================
 const sfx = {
-    ctx: null, masterGain: null,
+    ctx: null, 
+    masterGain: null,
+    
     init: function() {
-        if (this.ctx) return;
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        this.ctx = new AudioContext();
-        this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.value = 0.3;
-        this.masterGain.connect(this.ctx.destination);
-        if (this.ctx.state === 'suspended') this.ctx.resume();
+        // 1. Crear el contexto si no existe
+        if (!this.ctx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+            this.masterGain = this.ctx.createGain();
+            this.masterGain.gain.value = 0.3;
+            this.masterGain.connect(this.ctx.destination);
+        }
+
+        // 2. CRÍTICO: Si el contexto existe pero está suspendido (bloqueo de navegador),
+        // intentamos reanudarlo. Esto debe ocurrir dentro de un evento de usuario (click).
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume().then(() => {
+                console.log("AudioContext reanudado exitosamente.");
+            });
+        }
     },
+
     playTone: function(freq, type, duration, vol = 1, slideTo = null) {
         if (!this.ctx) return;
+        
+        // Doble verificación para navegadores estrictos
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
@@ -27,10 +44,13 @@ const sfx = {
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
         osc.connect(gain); gain.connect(this.masterGain); osc.start(); osc.stop(this.ctx.currentTime + duration);
     },
+    
+    // --- EFECTOS ---
     click: function() { this.playTone(800, 'square', 0.05, 0.1); },
     error: function() { this.playTone(150, 'sawtooth', 0.4, 0.3, 100); },
     success: function() { 
-        if (!this.ctx) return;
+        // Si se llama éxito y no hay audio, intentar init (fallback)
+        if (!this.ctx) this.init();
         this.playTone(523.25, 'sine', 0.2, 0.2); 
         setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); 
     },
@@ -86,7 +106,7 @@ const app = {
         societyHealth: 100, 
         isGameOver: false, 
         storyViewed_ch2: false,
-        societyHistory: [] // Historial para el gráfico
+        societyHistory: [] 
     },
     
     dom: {},
@@ -95,9 +115,7 @@ const app = {
         this.cacheDOM();
         this.loadGame();
         
-        // Inicializar historial si está vacío
         if(this.state.societyHistory.length === 0) {
-            // Rellenar con 100 para empezar plano
             this.state.societyHistory = new Array(60).fill(100);
         }
 
@@ -115,58 +133,29 @@ const app = {
         const canvas = document.getElementById('society-chart');
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        
-        // Ajustar tamaño interno al de visualización
-        if (canvas.width !== canvas.clientWidth) {
-            canvas.width = canvas.clientWidth;
-            canvas.height = canvas.clientHeight;
-        }
-
-        const w = canvas.width;
-        const h = canvas.height;
-        const history = this.state.societyHistory;
-        
+        if (canvas.width !== canvas.clientWidth) { canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; }
+        const w = canvas.width; const h = canvas.height; const history = this.state.societyHistory;
         ctx.clearRect(0, 0, w, h);
-
         if (history.length < 2) return;
-
-        // Configuración de estilo
         const isCritical = history[history.length - 1] < 30;
-        const color = isCritical ? '#ef4444' : '#d946ef'; // Rojo si es crítico, Magenta si es normal
-        
-        ctx.beginPath();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.lineJoin = 'round';
-
-        // Dibujar línea
+        const color = isCritical ? '#ef4444' : '#d946ef'; 
+        ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = 'round';
         const step = w / (history.length - 1);
-        
         history.forEach((val, i) => {
-            // Mapear 0-100 a altura del canvas (dejando un margen)
-            const y = h - ((val / 100) * (h - 10)) - 5; 
-            const x = i * step;
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+            const y = h - ((val / 100) * (h - 10)) - 5; const x = i * step;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         });
-        
         ctx.stroke();
-
-        // Relleno degradado debajo de la línea
-        ctx.lineTo(w, h);
-        ctx.lineTo(0, h);
-        ctx.closePath();
-        
+        ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
         const gradient = ctx.createLinearGradient(0, 0, 0, h);
         gradient.addColorStop(0, isCritical ? 'rgba(239, 68, 68, 0.2)' : 'rgba(217, 70, 239, 0.2)');
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        
-        ctx.fillStyle = gradient;
-        ctx.fill();
+        ctx.fillStyle = gradient; ctx.fill();
     },
 
-    // --- LOGS ---
+    // --- LOGS & AUDIO FIX ---
     openLog: function(id) {
+        // Intentar sfx click, pero puede fallar si es el primer load
         sfx.click();
         const data = storyData[id];
         if(data) {
@@ -177,7 +166,13 @@ const app = {
     },
 
     closeStory: function() {
-        sfx.init(); sfx.success();
+        // 1. INICIALIZAR AUDIO CONTEXT AHORA (Evento de Usuario)
+        sfx.init();
+        
+        // 2. Reproducir sonido de éxito
+        sfx.success();
+        
+        // 3. Cerrar modal y arrancar juego
         document.getElementById('story-modal').classList.add('hidden');
         if(!this.state.storyViewed_ch2) {
             this.state.storyViewed_ch2 = true;
@@ -193,26 +188,17 @@ const app = {
         document.getElementById('btn-confirm-reset').classList.add('disabled');
         document.getElementById('btn-confirm-reset').disabled = true;
     },
-    closeResetModal: function() {
-        sfx.click();
-        document.getElementById('reset-modal').classList.add('hidden');
-    },
+    closeResetModal: function() { sfx.click(); document.getElementById('reset-modal').classList.add('hidden'); },
     toggleResetBtn: function() {
         const checkbox = document.getElementById('confirm-reset-check');
         const btn = document.getElementById('btn-confirm-reset');
-        if(checkbox.checked) {
-            btn.classList.remove('disabled'); btn.disabled = false; sfx.mechanic();
-        } else {
-            btn.classList.add('disabled'); btn.disabled = true;
-        }
+        if(checkbox.checked) { btn.classList.remove('disabled'); btn.disabled = false; sfx.mechanic(); } 
+        else { btn.classList.add('disabled'); btn.disabled = true; }
     },
     executeReset: function() {
-        sfx.error();
-        gameManager.clearProgress(); localStorage.clear();
-        window.location.href = "../index.html";
+        sfx.error(); gameManager.clearProgress(); localStorage.clear(); window.location.href = "../index.html";
     },
 
-    // --- LOOP ---
     startGameLoop: function() {
         this.renderAll();
         if(!this.gameInterval) {
@@ -228,27 +214,10 @@ const app = {
             socPercent: document.getElementById('soc-percent'),
             unitCount: document.getElementById('unit-count'),
             socDrain: document.getElementById('soc-drain'),
-            views: {
-                farms: document.getElementById('view-farms'),
-                extraction: document.getElementById('view-extraction'),
-                map: document.getElementById('view-map'),
-                society: document.getElementById('view-society')
-            },
-            nav: {
-                farms: document.getElementById('nav-farms'),
-                extraction: document.getElementById('nav-extraction'),
-                map: document.getElementById('nav-map'),
-                society: document.getElementById('nav-society')
-            },
-            lists: {
-                units: document.getElementById('units-list'),
-                farms: document.getElementById('farm-shop-list')
-            },
-            radarScreen: document.getElementById('radar-screen'),
-            captureBtn: document.getElementById('btn-capture'),
-            radarTarget: document.getElementById('radar-target-type'),
-            scanInfo: document.getElementById('scan-info'),
-            captureCost: document.getElementById('capture-cost')
+            views: { farms: document.getElementById('view-farms'), extraction: document.getElementById('view-extraction'), map: document.getElementById('view-map'), society: document.getElementById('view-society') },
+            nav: { farms: document.getElementById('nav-farms'), extraction: document.getElementById('nav-extraction'), map: document.getElementById('nav-map'), society: document.getElementById('nav-society') },
+            lists: { units: document.getElementById('units-list'), farms: document.getElementById('farm-shop-list') },
+            radarScreen: document.getElementById('radar-screen'), captureBtn: document.getElementById('btn-capture'), radarTarget: document.getElementById('radar-target-type'), scanInfo: document.getElementById('scan-info'), captureCost: document.getElementById('capture-cost')
         };
     },
 
@@ -262,50 +231,28 @@ const app = {
 
         const currentDrain = this.config.societyDrainBase + (this.state.unlockedTier * 0.1);
         this.state.societyHealth -= currentDrain;
-        
-        // --- ACTUALIZAR HISTORIAL PARA EL GRÁFICO ---
         this.state.societyHistory.push(this.state.societyHealth);
-        if(this.state.societyHistory.length > 60) { // Mantener solo últimos 60 puntos
-            this.state.societyHistory.shift();
-        }
+        if(this.state.societyHistory.length > 60) this.state.societyHistory.shift();
         
-        if(this.state.societyHealth <= 0) {
-            this.state.societyHealth = 0;
-            this.triggerGameOver();
-        }
+        if(this.state.societyHealth <= 0) { this.state.societyHealth = 0; this.triggerGameOver(); }
 
         let prod = 0;
         for (let i = this.state.units.length - 1; i >= 0; i--) {
             let u = this.state.units[i];
             let tier = this.tiers[u.tierId];
-            
             let tierGap = this.state.unlockedTier - u.tierId;
             let efficiency = 1 / (1 + (tierGap * this.config.oldFarmPenalty));
-            
             let currentProd = tier.prod * efficiency;
             let currentDmg = this.config.baseDamage;
 
-            if(u.boostTimer > 0) {
-                currentProd *= this.config.boostMultProd; 
-                currentDmg *= this.config.boostMultDmg;
-                u.boostTimer--;
-            }
-            u.hp -= currentDmg;
-            prod += currentProd;
-
-            if(u.hp <= 0) {
-                this.state.units.splice(i, 1);
-                sfx.error();
-            }
+            if(u.boostTimer > 0) { currentProd *= this.config.boostMultProd; currentDmg *= this.config.boostMultDmg; u.boostTimer--; }
+            u.hp -= currentDmg; prod += currentProd;
+            if(u.hp <= 0) { this.state.units.splice(i, 1); sfx.error(); }
         }
         this.state.water += prod;
         this.updateUI(currentDrain);
         if(!this.dom.views.extraction.classList.contains('hidden')) this.renderUnits();
-        
-        // Dibujar gráfico si estamos en la vista de sociedad
-        if(!this.dom.views.society.classList.contains('hidden')) {
-            this.drawSocietyChart();
-        }
+        if(!this.dom.views.society.classList.contains('hidden')) this.drawSocietyChart();
     },
 
     buyTier: function(tierId) {
@@ -323,9 +270,7 @@ const app = {
     },
 
     triggerChapterTransition: function() {
-        gameManager.saveProgress({
-            water: this.state.water, unlockedTier: 3, societyHealth: this.state.societyHealth, units: [] 
-        });
+        gameManager.saveProgress({ water: this.state.water, unlockedTier: 3, societyHealth: this.state.societyHealth, units: [] });
         const overlay = document.getElementById('build-overlay');
         overlay.classList.remove('hidden');
         sfx.mechanic();
@@ -433,7 +378,6 @@ const app = {
             let statusClass = isOwned ? 'owned' : (isNext ? 'available' : 'locked');
             let opacity = isNext || isOwned ? 1 : 0.5;
             
-            // BOTON LOG PARA TIERS CON HISTORIA (0 y 2)
             let logBtn = (storyData[tier.id]) 
                 ? `<button class="btn-log-card" onclick="app.openLog(${tier.id})">LOG <i class="fa-solid fa-file-code"></i></button>`
                 : '';
@@ -473,10 +417,7 @@ const app = {
         this.dom.views[view].classList.remove('hidden');
         this.dom.nav[view].classList.add('active');
         sfx.click();
-        
-        // Forzar redibujado del gráfico si entramos a sociedad
         if(view === 'society') setTimeout(() => this.drawSocietyChart(), 50);
-
         if(view === 'farms') this.renderFarms();
         if(view === 'extraction') this.renderUnits();
         if(view === 'map') this.renderMapInfo();

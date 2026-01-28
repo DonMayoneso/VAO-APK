@@ -7,18 +7,37 @@
 
 // ================= MOTOR DE AUDIO =================
 const sfx = {
-    ctx: null, masterGain: null,
+    ctx: null, 
+    masterGain: null,
+    
+    // Modificado para devolver una Promesa (Fix Autoplay)
     init: function() {
-        if (this.ctx) return;
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        this.ctx = new AudioContext();
-        this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.value = 0.3;
-        this.masterGain.connect(this.ctx.destination);
-        if (this.ctx.state === 'suspended') this.ctx.resume();
+        return new Promise((resolve) => {
+            if (!this.ctx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = 0.3;
+                this.masterGain.connect(this.ctx.destination);
+            }
+
+            if (this.ctx.state === 'suspended') {
+                this.ctx.resume().then(() => {
+                    console.log("AudioContext reanudado.");
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        });
     },
+
     playTone: function(freq, type, duration, vol = 1, slideTo = null) {
         if (!this.ctx) return;
+        
+        // Seguridad adicional
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
@@ -28,13 +47,23 @@ const sfx = {
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
         osc.connect(gain); gain.connect(this.masterGain); osc.start(); osc.stop(this.ctx.currentTime + duration);
     },
+
     click: function() { this.playTone(800, 'square', 0.05, 0.1); },
     error: function() { this.playTone(150, 'sawtooth', 0.4, 0.3, 100); },
+    
+    // Modificado para asegurar inicialización si se llama directamente
     success: function() { 
-        if (!this.ctx) return;
-        this.playTone(523.25, 'sine', 0.2, 0.2); 
-        setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); 
+        if (!this.ctx) {
+            this.init().then(() => {
+                this.playTone(523.25, 'sine', 0.2, 0.2); 
+                setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); 
+            });
+        } else {
+            this.playTone(523.25, 'sine', 0.2, 0.2); 
+            setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); 
+        }
     },
+    
     sonar: function() {
         if (!this.ctx) return;
         this.playTone(1200, 'sine', 0.3, 0.2);

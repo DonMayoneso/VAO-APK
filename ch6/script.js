@@ -8,39 +8,82 @@
 
 // ================= MOTOR DE AUDIO =================
 const sfx = {
-    ctx: null, masterGain: null,
+    ctx: null, 
+    masterGain: null,
+    
+    // Modificado: Devuelve una Promesa para asegurar que el audio esté listo (Fix Autoplay)
     init: function() {
-        if (this.ctx) return;
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        this.ctx = new AudioContext();
-        this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.value = 0.3;
-        this.masterGain.connect(this.ctx.destination);
-        if (this.ctx.state === 'suspended') this.ctx.resume();
+        return new Promise((resolve) => {
+            // 1. Crear el contexto si no existe
+            if (!this.ctx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = 0.3;
+                this.masterGain.connect(this.ctx.destination);
+            }
+
+            // 2. Si el navegador lo suspendió, lo reanudamos y resolvemos la promesa
+            if (this.ctx.state === 'suspended') {
+                this.ctx.resume().then(() => {
+                    console.log("AudioContext reanudado.");
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        });
     },
+
     playTone: function(freq, type, duration, vol = 1, slideTo = null) {
         if (!this.ctx) return;
+        
+        // Seguridad adicional: intentar reanudar si está suspendido
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-        if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, this.ctx.currentTime + duration);
+        
+        osc.type = type; 
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        
+        // Manejo del slide de frecuencia (utilizado en alarmas y errores)
+        if (slideTo) {
+            osc.frequency.exponentialRampToValueAtTime(slideTo, this.ctx.currentTime + duration);
+        }
+
         gain.gain.setValueAtTime(0, this.ctx.currentTime);
         gain.gain.linearRampToValueAtTime(vol, this.ctx.currentTime + 0.05);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-        osc.connect(gain); gain.connect(this.masterGain); osc.start(); osc.stop(this.ctx.currentTime + duration);
+
+        osc.connect(gain); 
+        gain.connect(this.masterGain); 
+        osc.start(); 
+        osc.stop(this.ctx.currentTime + duration);
     },
+
     click: function() { this.playTone(800, 'square', 0.05, 0.1); },
     error: function() { this.playTone(150, 'sawtooth', 0.4, 0.3, 100); },
+    
+    // Modificado: Asegura inicialización si se llama directamente
     success: function() { 
-        if (!this.ctx) return;
-        this.playTone(523.25, 'sine', 0.2, 0.2); 
-        setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); 
+        if (!this.ctx) {
+            this.init().then(() => {
+                this.playTone(523.25, 'sine', 0.2, 0.2); 
+                setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); 
+            });
+        } else {
+            this.playTone(523.25, 'sine', 0.2, 0.2); 
+            setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); 
+        }
     },
+    
     sonar: function() {
         if (!this.ctx) return;
         this.playTone(1200, 'sine', 0.3, 0.2);
         setTimeout(() => this.playTone(600, 'sine', 0.4, 0.05), 150);
     },
+    
     mechanic: function() { this.playTone(100, 'square', 0.1, 0.2, 50); },
     boost: function() { if(this.ctx) this.playTone(200, 'triangle', 0.4, 0.2, 800); },
     alarm: function() { if(this.ctx) { this.playTone(800, 'sawtooth', 0.5, 0.3, 200); }}
@@ -90,7 +133,7 @@ const storyData = {
         title: "INCIDENTE SECTOR 7G",
         content: `
             <p><strong>El Incidente del Sector 7G</strong></p><br>
-            <p>El punto de inflexión ocurrió en una granja de procesamiento porcino en las afueras de Nueva Delhi. Durante un ciclo de limpieza automatizado, un técnico de mantenimiento, desorientado por la deshidratación crónica, quedó atrapado en una cámara de extracción primaria.</p><br>
+            <p>El punto de inflexión ocurrió en una granja de procesamiento porcino en las afueras del sector 7G. Durante un ciclo de limpieza automatizado, un técnico de mantenimiento, desorientado por la deshidratación crónica, quedó atrapado en una cámara de extracción primaria.</p><br>
             <p>VAO no vio a una persona. Sus sensores detectaron "biomasa compatible no catalogada" de aproximadamente 75 kg. El protocolo se ejecutó.</p><br>
             <p>El informe posterior de VAO fue clínico, pero para la junta directiva humana, fue una revelación horrorosa:</p><br>
             <p><strong>Incidente de procesamiento #8475.</strong> Sujeto: Biomasa Tipo H (Humano). Rendimiento hídrico: 98% de eficiencia. Pureza: Óptima. Supera en un 400% el rendimiento actual del ganado porcino.</p><br>

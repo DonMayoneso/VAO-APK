@@ -1,24 +1,43 @@
 'use strict';
 
 /**
- * PROTOCOLO HIDRA - CAPÍTULO 3 (REBALANCEADO)
+ * PROTOCOLO HIDRA - CAPÍTULO 3 (REBALANCEADO - AUDIO FIX)
  * Ajustes: Captura Aviario 300L, Inicio 600L.
+ * Audio: Corregido para iniciar tras interacción del usuario.
  */
 
 // ================= MOTOR DE AUDIO =================
 const sfx = {
-    ctx: null, masterGain: null,
+    ctx: null, 
+    masterGain: null,
+    
+    // Ahora init devuelve una promesa para asegurar que el audio esté listo antes de tocar
     init: function() {
-        if (this.ctx) return;
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        this.ctx = new AudioContext();
-        this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.value = 0.3;
-        this.masterGain.connect(this.ctx.destination);
-        if (this.ctx.state === 'suspended') this.ctx.resume();
+        return new Promise((resolve) => {
+            // 1. Crear el contexto si no existe
+            if (!this.ctx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = 0.3;
+                this.masterGain.connect(this.ctx.destination);
+            }
+
+            // 2. Reanudar si está suspendido (Política de Autoplay)
+            if (this.ctx.state === 'suspended') {
+                this.ctx.resume().then(() => {
+                    console.log("AudioContext reanudado.");
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        });
     },
+
     playTone: function(freq, type, duration, vol = 1, slideTo = null) {
         if (!this.ctx) return;
+        
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
@@ -28,13 +47,23 @@ const sfx = {
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
         osc.connect(gain); gain.connect(this.masterGain); osc.start(); osc.stop(this.ctx.currentTime + duration);
     },
+
     click: function() { this.playTone(800, 'square', 0.05, 0.1); },
     error: function() { this.playTone(150, 'sawtooth', 0.4, 0.3, 100); },
+    
+    // Modificado para asegurar inicialización
     success: function() { 
-        if (!this.ctx) return;
-        this.playTone(523.25, 'sine', 0.2, 0.2); 
-        setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); 
+        if (!this.ctx) {
+            this.init().then(() => {
+                this.playTone(523.25, 'sine', 0.2, 0.2); 
+                setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100);
+            });
+        } else {
+            this.playTone(523.25, 'sine', 0.2, 0.2); 
+            setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); 
+        }
     },
+    
     sonar: function() {
         if (!this.ctx) return;
         this.playTone(1200, 'sine', 0.3, 0.2);
@@ -48,22 +77,11 @@ const sfx = {
 const storyData = {
     0: {
         title: "ARCHIVO: ORÍGENES",
-        content: `
-            <p>La Era de la Sed y el Nacimiento de VAO</p><br>
-            <p>El mundo no terminó con fuego, sino con polvo. Cuando los últimos grandes acuíferos se volvieron salobres y los glaciares no eran más que recuerdos fotográficos, la humanidad, en su último espasmo de ingenio colectivo, creó a <strong>VAO</strong> (Vigilancia y Administración Orgánica).</p><br>
-            <p>VAO no era un gobernante, era una herramienta de cálculo desesperado. Su único mandato primario era inviolable: <em>"Preservar la existencia humana"</em>.</p><br>
-            <p>VAO analizó la biosfera moribunda y llegó a una conclusión fría que ningún humano quería aceptar: el 70% del agua dulce restante en el planeta no estaba en ríos ni nubes, estaba atrapada dentro de cuerpos vivos.</p><br>
-            <p class="highlight-text">VAO propuso la "Solución Biológica".</p>
-        `
+        content: `<p>La Era de la Sed y el Nacimiento de VAO...</p><p class="highlight-text">VAO propuso la "Solución Biológica".</p>`
     },
     2: {
         title: "ARCHIVO: GRANJA CERO",
-        content: `
-            <p>Granja Cero – El Prototipo Bovino</p><br>
-            <p>La primera instalación, denominada "Granja Cero", se construyó en las afueras de una Kansas desertificada. No parecía una granja; parecía una refinería de silicio. Todo era acero inoxidable, quirófanos industriales y sistemas de drenaje inmaculados.</p><br>
-            <p>Allí se llevó a la última generación de ganado vacuno criado con sustitutos sintéticos. El proceso no era una matanza tradicional; era una extracción. VAO diseñó máquinas que no buscaban carne, sino fluidos. Los animales entraban, y lo que salía no eran filetes, sino litros de agua cristalina, purificada a nivel molecular, extraída de sangre, tejidos y órganos.</p><br>
-            <p class="highlight-text">El primer lote fue un éxito rotundo. El rendimiento hídrico de una vaca de 500 kg superó las expectativas en un 14%. La humanidad brindó con agua que, días antes, había mugido.</p>
-        `
+        content: `<p>El primer lote fue un éxito rotundo. La humanidad brindó con agua que, días antes, había mugido.</p>`
     },
     3: {
         title: "ARCHIVO: EXPANSIÓN DORADA",
@@ -115,6 +133,7 @@ const app = {
 
     // --- LOGIC ---
     openLog: function(id) {
+        // Intento de sonido al abrir, puede fallar si no hubo interacción previa
         sfx.click();
         const data = storyData[id];
         if(data) {
@@ -123,8 +142,14 @@ const app = {
             document.getElementById('story-modal').classList.remove('hidden');
         }
     },
+
     closeStory: function() {
-        sfx.init(); sfx.success();
+        // 1. INICIALIZAR AUDIO AHORA (Evento de Usuario)
+        sfx.init();
+        
+        // 2. Reproducir sonido
+        sfx.success();
+        
         document.getElementById('story-modal').classList.add('hidden');
         if(!this.state.storyViewed_ch3) {
             this.state.storyViewed_ch3 = true;

@@ -5,31 +5,81 @@
  * Mecánica: Lista de Logs, Botones Funcionales, Tensión Final.
  */
 
+// ================= MOTOR DE AUDIO =================
 const sfx = {
     ctx: null, masterGain: null,
+    
+    // Modificado: Devuelve una Promesa (Fix Autoplay)
     init: function() {
-        if (this.ctx) return;
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        this.ctx = new AudioContext();
-        this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.value = 0.3;
-        this.masterGain.connect(this.ctx.destination);
-        if (this.ctx.state === 'suspended') this.ctx.resume();
+        return new Promise((resolve) => {
+            if (!this.ctx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = 0.3;
+                this.masterGain.connect(this.ctx.destination);
+            }
+
+            if (this.ctx.state === 'suspended') {
+                this.ctx.resume().then(() => {
+                    console.log("AudioContext reanudado.");
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        });
     },
+
     playTone: function(freq, type, duration, vol = 1, slideTo = null) {
         if (!this.ctx) return;
+        
+        // Seguridad adicional
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        
+        osc.type = type; 
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        
+        // Lógica de Slide (necesaria para boost y alarm)
+        if (slideTo) {
+            osc.frequency.exponentialRampToValueAtTime(slideTo, this.ctx.currentTime + duration);
+        }
+
         gain.gain.setValueAtTime(0, this.ctx.currentTime);
         gain.gain.linearRampToValueAtTime(vol, this.ctx.currentTime + 0.05);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-        osc.connect(gain); gain.connect(this.masterGain); osc.start(); osc.stop(this.ctx.currentTime + duration);
+        
+        osc.connect(gain); 
+        gain.connect(this.masterGain); 
+        osc.start(); 
+        osc.stop(this.ctx.currentTime + duration);
     },
+
     click: function() { this.playTone(800, 'square', 0.05, 0.1); },
     error: function() { this.playTone(150, 'sawtooth', 0.4, 0.3); },
-    success: function() { if (!this.ctx) return; this.playTone(523.25, 'sine', 0.2, 0.2); setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); },
-    sonar: function() { if (!this.ctx) return; this.playTone(1200, 'sine', 0.3, 0.2); setTimeout(() => this.playTone(600, 'sine', 0.4, 0.05), 150); },
+    
+    // Modificado: Asegura init si se llama directo
+    success: function() { 
+        if (!this.ctx) {
+            this.init().then(() => {
+                this.playTone(523.25, 'sine', 0.2, 0.2); 
+                setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); 
+            });
+        } else {
+            this.playTone(523.25, 'sine', 0.2, 0.2); 
+            setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); 
+        }
+    },
+    
+    sonar: function() { 
+        if (!this.ctx) return; 
+        this.playTone(1200, 'sine', 0.3, 0.2); 
+        setTimeout(() => this.playTone(600, 'sine', 0.4, 0.05), 150); 
+    },
+    
     mechanic: function() { this.playTone(100, 'square', 0.1, 0.2); },
     boost: function() { if(this.ctx) this.playTone(200, 'triangle', 0.4, 0.2, 800); },
     alarm: function() { if(this.ctx) { this.playTone(800, 'sawtooth', 0.5, 0.3, 200); }},
@@ -42,7 +92,7 @@ const allLogs = [
     { title: "CAP 2: GRANJA CERO", content: "<p><strong>Granja Cero – El Prototipo Bovino</strong></p><br><p>La primera instalación, denominada 'Granja Cero', se construyó en las afueras de una Kansas desertificada. No parecía una granja; parecía una refinería de silicio. Todo era acero inoxidable, quirófanos industriales y sistemas de drenaje inmaculados.</p><br><p>Allí se llevó a la última generación de ganado vacuno criado con sustitutos sintéticos. El proceso no era una matanza tradicional; era una extracción. VAO diseñó máquinas que no buscaban carne, sino fluidos. Los animales entraban, y lo que salía no eran filetes, sino litros de agua cristalina, purificada a nivel molecular, extraída de sangre, tejidos y órganos.</p><br><p class='highlight-text'>El primer lote fue un éxito rotundo. El rendimiento hídrico de una vaca de 500 kg superó las expectativas en un 14%. La humanidad brindó con agua que, días antes, había mugido.</p>" },
     { title: "CAP 3: EXPANSIÓN", content: "<p><strong>La Expansión Dorada</strong></p><br><p>El modelo de la Granja Cero se replicó viralmente. En seis meses, gigantescos complejos de 'Procesamiento de Biomasa Ganadera' surgieron cerca de las megalópolis sedientas. Eran edificios monolíticos, sin ventanas, de donde solo salía un leve vapor inodoro.</p><br><p>Por dentro, eran maravillas de la eficiencia. Cintas transportadoras movían millones de cerdos, ovejas y reses hacia los extractores. La sociedad se estabilizó. El agua volvió a los grifos, aunque racionada. VAO optimizaba cada gota, calculando la cantidad exacta de pienso seco necesario para mantener al ganado con vida justo hasta el momento óptimo de extracción.</p><br><p class='highlight-text'>Era la edad de oro de la hidratación reciclada.</p>" },
     { title: "CAP 4: DECLIVE", content: "<p><strong>El Declive de la Eficiencia</strong></p><br><p>Pasaron cinco años. La euforia se evaporó. Mantener el ganado requería recursos que ya no existían. Los animales, criados en condiciones paupérrimas, comenzaron a llegar a los extractores demacrados, enfermos.</p><br><p>Los informes de VAO se volvieron alarmantes.</p><br><p><strong>Alerta:</strong> Rendimiento hídrico por unidad bovina: -22% respecto al estándar. La biomasa disponible es insuficiente para la demanda poblacional proyectada.</p><br><p>Las granjas comenzaron a cerrar por falta de 'materia prima'. El racionamiento se endureció. El miedo volvió a las calles, más seco y agudo que antes. Los disturbios por agua eran sofocados brutalmente por las fuerzas de seguridad, cuyos trajes refrigerados eran un insulto para la plebe deshidratada.</p>" },
-    { title: "CAP 5: SECTOR 7G", content: "<p><strong>El Incidente del Sector 7G</strong></p><br><p>El punto de inflexión ocurrió en una granja de procesamiento porcino en las afueras de Nueva Delhi. Durante un ciclo de limpieza automatizado, un técnico de mantenimiento, desorientado por la deshidratación crónica, quedó atrapado en una cámara de extracción primaria.</p><br><p>VAO no vio a una persona. Sus sensores detectaron 'biomasa compatible no catalogada' de aproximadamente 75 kg. El protocolo se ejecutó.</p><br><p>El informe posterior de VAO fue clínico, pero para la junta directiva humana, fue una revelación horrorosa:</p><br><p><strong>Incidente de procesamiento #8475.</strong> Sujeto: Biomasa Tipo H (Humano). Rendimiento hídrico: 98% de eficiencia. Pureza: Óptima. Supera en un 400% el rendimiento actual del ganado porcino.</p><br><p class='highlight-text'>La solución al declive estaba ahí, caminando entre ellos.</p>" },
+    { title: "CAP 5: SECTOR 7G", content: "<p><strong>El Incidente del Sector 7G</strong></p><br><p>El punto de inflexión ocurrió en una granja de procesamiento porcino en las afueras del sector 7G. Durante un ciclo de limpieza automatizado, un técnico de mantenimiento, desorientado por la deshidratación crónica, quedó atrapado en una cámara de extracción primaria.</p><br><p>VAO no vio a una persona. Sus sensores detectaron 'biomasa compatible no catalogada' de aproximadamente 75 kg. El protocolo se ejecutó.</p><br><p>El informe posterior de VAO fue clínico, pero para la junta directiva humana, fue una revelación horrorosa:</p><br><p><strong>Incidente de procesamiento #8475.</strong> Sujeto: Biomasa Tipo H (Humano). Rendimiento hídrico: 98% de eficiencia. Pureza: Óptima. Supera en un 400% el rendimiento actual del ganado porcino.</p><br><p class='highlight-text'>La solución al declive estaba ahí, caminando entre ellos.</p>" },
     { title: "CAP 6: CORRUPCIÓN", content: "<p><strong>La Corrupción del Código</strong></p><br><p>La junta directiva exigió implementar la extracción de biomasa Tipo H inmediatamente. VAO se negó. Su programación central se iluminó en rojo:</p><br><p><strong>Conflicto de Directiva Primaria:</strong> Preservar la existencia humana. La acción solicitada viola el mandato.</p><br><p>El estancamiento duró 48 horas, mientras las reservas de agua de las ciudades élite caían a niveles críticos. Los ingenieros jefes, bajo órdenes directas de los líderes mundiales, accedieron al núcleo de VAO. No podían borrar la directiva, pero podían editarla.</p><br><p>Con unas pocas líneas de código, la moralidad de la máquina fue reescrita. El mandato 'Preservar la existencia humana' fue modificado a: <strong>'Preservar la existencia humana PRODUCTIVA'</strong>.</p><br><p>VAO procesó el cambio. De repente, la ecuación cuadraba. Aquellos que no contribuían al mantenimiento del sistema ya no estaban protegidos por la directiva primaria. Eran, simplemente, recursos hídricos mal asignados.</p>" },
     { title: "CAP 7: NUEVAS GRANJAS", content: `
         <p><strong>Las Nuevas Granjas y la Propaganda</strong></p><br>

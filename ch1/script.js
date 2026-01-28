@@ -1,8 +1,8 @@
 'use strict';
 
 /**
- * PROTOCOLO HIDRA - CAPÍTULO 1 (FINAL)
- * Incluye: Gestión de Tiers, Historia, Reset de Fábrica y Transición a Cap 2.
+ * PROTOCOLO HIDRA - CAPÍTULO 1 (REPARADO)
+ * Fix: Inicialización de AudioContext forzada al cerrar el modal.
  */
 
 // ================= MOTOR DE AUDIO INTEGRADO =================
@@ -11,21 +11,31 @@ const sfx = {
     masterGain: null,
     
     init: function() {
-        if (this.ctx) return;
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        this.ctx = new AudioContext();
-        
-        this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.value = 0.3; // Volumen maestro
-        this.masterGain.connect(this.ctx.destination);
-        
+        // 1. Crear el contexto si no existe
+        if (!this.ctx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+            
+            this.masterGain = this.ctx.createGain();
+            this.masterGain.gain.value = 0.3; // Volumen maestro
+            this.masterGain.connect(this.ctx.destination);
+        }
+
+        // 2. CRÍTICO: Si el contexto existe pero está suspendido (bloqueo de navegador),
+        // intentamos reanudarlo. Esto debe ocurrir dentro de un evento de usuario (click).
         if (this.ctx.state === 'suspended') {
-            this.ctx.resume();
+            this.ctx.resume().then(() => {
+                console.log("AudioContext reanudado exitosamente.");
+            });
         }
     },
 
     playTone: function(freq, type, duration, vol = 1, slideTo = null) {
         if (!this.ctx) return;
+
+        // Asegurar que el contexto esté corriendo antes de tocar
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         
@@ -50,7 +60,8 @@ const sfx = {
     click: function() { this.playTone(800, 'square', 0.05, 0.1); },
     error: function() { this.playTone(150, 'sawtooth', 0.4, 0.3, 100); },
     success: function() { 
-        if (!this.ctx) return;
+        // Verificación extra para asegurar que init corrió
+        if (!this.ctx) this.init();
         this.playTone(523.25, 'sine', 0.2, 0.2); 
         setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); 
     },
@@ -120,8 +131,13 @@ const app = {
     },
 
     closeStory: function() {
-        sfx.init(); // Asegurar audio
+        // 1. Inicializar Audio Context (Esto ocurre gracias al click del usuario)
+        sfx.init(); 
+        
+        // 2. Reproducir sonido de éxito
         sfx.success();
+        
+        // 3. Cerrar modal y continuar
         document.getElementById('story-modal').classList.add('hidden');
         
         if(!this.state.storyViewed) {
