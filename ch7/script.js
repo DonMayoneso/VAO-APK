@@ -2,7 +2,7 @@
 
 /**
  * PROTOCOLO HIDRA - CAPÍTULO 7 (FINAL VERSION - FULL)
- * Mecánica: Lista de Logs, Botones Funcionales, Tensión Final.
+ * Ajustes: Drenaje acelerado y cuenta regresiva de 20s.
  */
 
 // ================= MOTOR DE AUDIO =================
@@ -33,35 +33,22 @@ const sfx = {
 
     playTone: function(freq, type, duration, vol = 1, slideTo = null) {
         if (!this.ctx) return;
-        
-        // Seguridad adicional
         if (this.ctx.state === 'suspended') this.ctx.resume();
 
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        
-        osc.type = type; 
-        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-        
-        // Lógica de Slide (necesaria para boost y alarm)
+        osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
         if (slideTo) {
             osc.frequency.exponentialRampToValueAtTime(slideTo, this.ctx.currentTime + duration);
         }
-
         gain.gain.setValueAtTime(0, this.ctx.currentTime);
         gain.gain.linearRampToValueAtTime(vol, this.ctx.currentTime + 0.05);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-        
-        osc.connect(gain); 
-        gain.connect(this.masterGain); 
-        osc.start(); 
-        osc.stop(this.ctx.currentTime + duration);
+        osc.connect(gain); gain.connect(this.masterGain); osc.start(); osc.stop(this.ctx.currentTime + duration);
     },
 
     click: function() { this.playTone(800, 'square', 0.05, 0.1); },
     error: function() { this.playTone(150, 'sawtooth', 0.4, 0.3); },
-    
-    // Modificado: Asegura init si se llama directo
     success: function() { 
         if (!this.ctx) {
             this.init().then(() => {
@@ -73,17 +60,15 @@ const sfx = {
             setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); 
         }
     },
-    
     sonar: function() { 
         if (!this.ctx) return; 
         this.playTone(1200, 'sine', 0.3, 0.2); 
         setTimeout(() => this.playTone(600, 'sine', 0.4, 0.05), 150); 
     },
-    
     mechanic: function() { this.playTone(100, 'square', 0.1, 0.2); },
     boost: function() { if(this.ctx) this.playTone(200, 'triangle', 0.4, 0.2, 800); },
     alarm: function() { if(this.ctx) { this.playTone(800, 'sawtooth', 0.5, 0.3, 200); }},
-    clock: function() { if(this.ctx) { this.playTone(1000, 'sine', 0.05, 0.5); } } // Nuevo sonido TIC
+    clock: function() { if(this.ctx) { this.playTone(1000, 'sine', 0.05, 0.5); } }
 };
 
 // ================= HISTORIA COMPLETA =================
@@ -109,7 +94,7 @@ const app = {
     config: { 
         tickRate: 1000, 
         baseDamage: 5.0, 
-        societyDrainBase: 1.0, // Drenaje tenso
+        societyDrainBase: 1.5, // DRENAJE ACELERADO (Antes 1.0)
         boostDuration: 5, boostMultProd: 2, boostMultDmg: 3, 
         healCost: 20000 
     },
@@ -117,7 +102,8 @@ const app = {
     state: { 
         water: 1200, units: [], unlockedTier: 7, societyHealth: 100, 
         societyHistory: [], capturedTotal: 0, escapeReady: false, 
-        countdown: 40, countdownActive: false, storyViewed_ch7: false
+        countdown: 20, // CUENTA REGRESIVA REDUCIDA (Antes 40)
+        countdownActive: false, storyViewed_ch7: false
     },
     
     dom: {},
@@ -147,12 +133,14 @@ const app = {
     },
 
     closeStory: function() {
-        sfx.init(); sfx.success();
-        document.getElementById('story-modal').classList.add('hidden');
-        if(!this.state.storyViewed_ch7) {
-            this.state.storyViewed_ch7 = true;
-            this.startGameLoop();
-        }
+        sfx.init().then(() => {
+            sfx.success();
+            document.getElementById('story-modal').classList.add('hidden');
+            if(!this.state.storyViewed_ch7) {
+                this.state.storyViewed_ch7 = true;
+                this.startGameLoop();
+            }
+        });
     },
 
     // --- LOOP ---
@@ -187,8 +175,8 @@ const app = {
 
             if(this.state.countdown > 0) {
                 this.state.countdown--;
-                // Sonido TIC cada 5 segundos
-                if(this.state.countdown % 5 === 0) {
+                // Sonido TIC cada segundo (antes era cada 5, ahora es más tenso)
+                if(this.state.countdown % 2 === 0) {
                     sfx.clock();
                 }
                 
@@ -224,7 +212,7 @@ const app = {
         if(!this.dom.views.society.classList.contains('hidden')) this.drawSocietyChart();
     },
 
-    // --- ACCIONES DE UNIDADES (FUNCIONANDO) ---
+    // --- ACCIONES DE UNIDADES ---
     actionHeal: function(id) { 
         let u = this.state.units.find(x => x.id === id); 
         if(u && this.state.water >= this.config.healCost && u.hp < 100) { 
@@ -240,7 +228,7 @@ const app = {
         if(u) { 
             u.boostTimer = this.config.boostDuration; 
             sfx.boost(); 
-            this.renderUnits(); // Forzar render para ver el efecto visual
+            this.renderUnits(); 
         } 
     },
 
@@ -256,7 +244,7 @@ const app = {
         } 
     },
 
-    // --- RENDERIZADO DE LOGS (EN LUGAR DE GRANJAS) ---
+    // --- RENDERIZADO DE LOGS ---
     renderFarms: function() {
         let html = '<div style="display:flex; flex-direction:column; gap:10px;">';
         allLogs.forEach((log, index) => {

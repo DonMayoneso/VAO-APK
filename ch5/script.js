@@ -146,10 +146,7 @@ const breakoutGame = {
     canvas: null, ctx: null, 
     ball: { x: 150, y: 150, dx: 2.5, dy: -2.5, radius: 4 },
     paddle: { h: 10, w: 75, x: 112 },
-    bricks: [],
-    rowCount: 3, colCount: 5,
-    isPlaying: false,
-    interval: null,
+    bricks: [], rowCount: 3, colCount: 5, isPlaying: false, interval: null,
 
     init: function() {
         this.canvas = document.getElementById('breakout-canvas');
@@ -183,10 +180,7 @@ const breakoutGame = {
         this.interval = setInterval(() => this.draw(), 12);
     },
 
-    stop: function() {
-        clearInterval(this.interval);
-        this.isPlaying = false;
-    },
+    stop: function() { clearInterval(this.interval); this.isPlaying = false; },
 
     movePaddle: function(x) {
         this.paddle.x = x - this.paddle.w/2;
@@ -243,7 +237,6 @@ const breakoutGame = {
             }
         }
         if (Math.abs(this.ball.dx) < 0.2) { this.ball.dx = 0.5 * (Math.random() > 0.5 ? 1 : -1); }
-
         this.ball.x += this.ball.dx; this.ball.y += this.ball.dy;
     }
 };
@@ -256,12 +249,21 @@ const app = {
         { id: 2, name: "ESTABLO BOVINO", type: "ANIMAL", cost: 850, prod: 35.0, captureCost: 200, icon: "fa-cow" },
         { id: 3, name: "AVIARIO INDUSTRIAL", type: "ANIMAL", cost: 1300, prod: 100.0, captureCost: 300, icon: "fa-feather" },
         { id: 4, name: "PROCESADOR BIOMASA", type: "SINTÉTICO", cost: 1900, prod: 250.0, captureCost: 400, icon: "fa-industry" },
-        { id: 5, name: "CORRECCIONALES BÁSICAS", type: "HUMANO", cost: 2400, prod: 600.0, captureCost: 450, icon: "fa-person-shelter" }
+        { id: 5, name: "CORRECCIONALES BÁSICAS", type: "HUMANO", cost: 10000, prod: 600.0, captureCost: 450, icon: "fa-person-shelter" }
     ],
 
     config: { 
-        tickRate: 1000, baseDamage: 2.0, societyDrainBase: 1.8, healCost: 15, healAmount: 20,
-        feedCostSmall: 50, feedCostBig: 200, boostDuration: 5, boostMultProd: 2, boostMultDmg: 3, oldFarmPenalty: 0.4
+        tickRate: 1000, 
+        baseDamage: 2.0, 
+        societyDrainBase: 1.8, 
+        healCost: 500, 
+        healAmount: 20,
+        feedCostSmall: 1000, 
+        feedCostBig: 2500, 
+        boostDuration: 5, 
+        boostMultProd: 2, 
+        boostMultDmg: 3, 
+        oldFarmPenalty: 0.4
     },
 
     state: { 
@@ -290,9 +292,11 @@ const app = {
         }
     },
     closeStory: function() {
-        sfx.init(); sfx.success();
-        document.getElementById('story-modal').classList.add('hidden');
-        if(!this.state.storyViewed) { this.state.storyViewed = true; this.startGameLoop(); }
+        sfx.init().then(() => {
+            sfx.success();
+            document.getElementById('story-modal').classList.add('hidden');
+            if(!this.state.storyViewed) { this.state.storyViewed = true; this.startGameLoop(); }
+        });
     },
 
     triggerHack: function() { document.getElementById('hack-modal').classList.remove('hidden'); },
@@ -330,7 +334,6 @@ const app = {
     },
 
     tick: function() {
-        // [PAUSA ACTIVA DURANTE EL MINIJUEGO]
         if(this.state.isGameOver || !this.state.storyViewed || breakoutGame.isPlaying) return;
 
         const currentDrain = this.config.societyDrainBase + (this.state.unlockedTier * 0.1);
@@ -390,10 +393,53 @@ const app = {
         }
     },
 
-    actionHeal: function(id) { let u = this.state.units.find(x => x.id === id); if(u && this.state.water >= this.config.healCost && u.hp < 100) { this.state.water -= this.config.healCost; u.hp = Math.min(100, u.hp + this.config.healAmount); sfx.mechanic(); this.updateUI(); } },
-    actionBoost: function(id) { let u = this.state.units.find(x => x.id === id); if(u) { u.boostTimer = this.config.boostDuration; sfx.boost(); this.renderUnits(); } },
-    actionRecycle: function(id) { let u = this.state.units.find(x => x.id === id); if(!u) return; let tier = this.tiers[u.tierId]; let refund = Math.floor(tier.captureCost / 2); if(confirm(`¿Reciclar? +${refund}L`)) { let idx = this.state.units.findIndex(x => x.id === id); this.state.water += refund; this.state.units.splice(idx, 1); sfx.success(); this.renderUnits(); } },
-    feedSociety: function(amount) { let cost = amount === 10 ? this.config.feedCostSmall : this.config.feedCostBig; if(this.state.water >= cost) { this.state.water -= cost; this.state.societyHealth = Math.min(100, this.state.societyHealth + amount); sfx.success(); this.updateUI(); } else { sfx.error(); } },
+    actionHeal: function(id) { 
+        let u = this.state.units.find(x => x.id === id); 
+        if(u && this.state.water >= this.config.healCost && u.hp < 100) { 
+            this.state.water -= this.config.healCost; 
+            u.hp = Math.min(100, u.hp + this.config.healAmount); 
+            sfx.mechanic(); 
+            this.updateUI(); 
+        } 
+    },
+    
+    actionBoost: function(id) { 
+        let u = this.state.units.find(x => x.id === id); 
+        if(u) { 
+            u.boostTimer = this.config.boostDuration; 
+            sfx.boost(); 
+            this.renderUnits(); 
+        } 
+    },
+    
+    actionRecycle: function(id) { 
+        let u = this.state.units.find(x => x.id === id); 
+        if(!u) return; 
+        
+        let tier = this.tiers[u.tierId]; 
+        let refund = Math.floor(tier.captureCost / 2); 
+        
+        // RECICLAJE INSTANTÁNEO SIN CONFIRMACIÓN
+        let idx = this.state.units.findIndex(x => x.id === id); 
+        this.state.water += refund; 
+        this.state.units.splice(idx, 1); 
+        sfx.success(); 
+        this.renderUnits(); 
+    },
+    
+    feedSociety: function(amount) { 
+        // Costos actualizados dinámicamente según config
+        let cost = amount === 10 ? this.config.feedCostSmall : this.config.feedCostBig; 
+        if(this.state.water >= cost) { 
+            this.state.water -= cost; 
+            this.state.societyHealth = Math.min(100, this.state.societyHealth + amount); 
+            sfx.success(); 
+            this.updateUI(); 
+        } else { 
+            sfx.error(); 
+        } 
+    },
+    
     updateUI: function(drain=0) { this.dom.totalWater.innerText = Math.floor(this.state.water); this.dom.socPercent.innerText = Math.floor(this.state.societyHealth); this.dom.socBar.style.width = this.state.societyHealth + "%"; this.dom.socBar.style.backgroundColor = this.state.societyHealth < 30 ? "#ef4444" : "#d946ef"; this.dom.unitCount.innerText = this.state.units.length; if(drain>0) this.dom.socDrain.innerText = "-" + drain.toFixed(2); },
     renderUnits: function() { if(this.dom.views.extraction.classList.contains('hidden')) return; let html = ''; this.state.units.forEach(u => { const isBoosted = u.boostTimer > 0; const tier = this.tiers[u.tierId]; const refund = Math.floor(tier.captureCost / 2); let tierGap = this.state.unlockedTier - u.tierId; let efficiencyMsg = tierGap > 0 ? `<small style="color:#ef4444">⚠ OBSOLETO</small>` : ''; html += `<div class="unit-card ${isBoosted ? 'boost-active' : ''}"><div class="unit-main-row"><div class="card-icon"><i class="fa-solid ${tier.icon}"></i></div><div class="card-info"><span class="unit-name">${u.name} ${isBoosted ? '⚡' : ''}</span>${efficiencyMsg}<div class="mini-bar"><div class="fill" style="width:${u.hp}%"></div></div></div></div><div class="unit-actions-top"><button class="btn-inline btn-heal" onclick="app.actionHeal(${u.id})"><i class="fa-solid fa-gear"></i> REPARAR (-${this.config.healCost}L)</button><button class="btn-inline btn-boost ${isBoosted?'active':''}" onclick="app.actionBoost(${u.id})"><i class="fa-solid fa-bolt"></i> BOOST</button></div><button class="btn-recycle-wide" onclick="app.actionRecycle(${u.id})"><i class="fa-solid fa-recycle"></i> RECICLAR (+${refund}L)</button></div>`; }); this.dom.lists.units.innerHTML = html; },
     renderFarms: function() { let html = ''; this.tiers.forEach(tier => { let isOwned = this.state.unlockedTier >= tier.id; let isNext = this.state.unlockedTier === tier.id - 1; let statusClass = isOwned ? 'owned' : (isNext ? 'available' : 'locked'); let opacity = isNext || isOwned ? 1 : 0.5; let logBtn = (storyData[tier.id]) ? `<button class="btn-log-card" onclick="app.openLog(${tier.id})">LOG <i class="fa-solid fa-file-code"></i></button>` : ''; let btnHtml = isOwned ? `<div class="owned-badge">ADQUIRIDO</div>` : (isNext ? `<button class="btn-buy-upgrade" onclick="app.buyTier(${tier.id})">COMPRAR</button>` : `<div style="font-size:0.8rem">BLOQUEADO</div>`); html += `<div class="farm-upgrade-card ${statusClass}" style="opacity: ${opacity}"><div class="upgrade-header"><span class="upgrade-title">${tier.name}</span><div style="display:flex; align-items:center;"><span class="upgrade-type type-animal">${tier.type}</span>${logBtn}</div></div><div class="upgrade-stats"><span><i class="fa-solid fa-droplet"></i> +${tier.prod} L/s</span></div><div class="upgrade-cost">COSTO: ${tier.cost} L</div>${btnHtml}</div>`; }); this.dom.lists.farms.innerHTML = html; },

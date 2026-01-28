@@ -3,6 +3,7 @@
 /**
  * PROTOCOLO HIDRA - CAPÍTULO 1 (REPARADO)
  * Fix: Inicialización de AudioContext forzada al cerrar el modal.
+ * Mod: Reciclaje instantáneo (sin confirmación).
  */
 
 // ================= MOTOR DE AUDIO INTEGRADO =================
@@ -373,19 +374,20 @@ const app = {
         }
     },
 
+    // --- ACCIÓN MODIFICADA: RECICLAJE SIN CONFIRMACIÓN ---
     actionRecycle: function(id) {
         let u = this.state.units.find(x => x.id === id);
         if(!u) return;
+        
         let tier = this.tiers[u.tierId];
         let refund = Math.floor(tier.captureCost / 2);
         
-        if(confirm(`¿Reciclar unidad? Recuperas +${refund}L`)) {
-            let idx = this.state.units.findIndex(x => x.id === id);
-            this.state.water += refund;
-            this.state.units.splice(idx, 1);
-            sfx.success();
-            this.renderUnits();
-        }
+        // Ejecución inmediata
+        let idx = this.state.units.findIndex(x => x.id === id);
+        this.state.water += refund;
+        this.state.units.splice(idx, 1);
+        sfx.success();
+        this.renderUnits();
     },
 
     feedSociety: function(amount) {

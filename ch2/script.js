@@ -1,8 +1,8 @@
 'use strict';
 
 /**
- * PROTOCOLO HIDRA - CAPÍTULO 2 (REPARADO)
- * Fix: Audio Context Autoplay Policy
+ * PROTOCOLO HIDRA - CAPÍTULO 2 (FINAL VERSION)
+ * Balance: Economía ajustada + Reciclaje Instantáneo.
  */
 
 // ================= MOTOR DE AUDIO =================
@@ -10,57 +10,68 @@ const sfx = {
     ctx: null, 
     masterGain: null,
     
+    // Inicialización con Promesa (Fix Autoplay)
     init: function() {
-        // 1. Crear el contexto si no existe
-        if (!this.ctx) {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            this.ctx = new AudioContext();
-            this.masterGain = this.ctx.createGain();
-            this.masterGain.gain.value = 0.3;
-            this.masterGain.connect(this.ctx.destination);
-        }
+        return new Promise((resolve) => {
+            if (!this.ctx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = 0.3;
+                this.masterGain.connect(this.ctx.destination);
+            }
 
-        // 2. CRÍTICO: Si el contexto existe pero está suspendido (bloqueo de navegador),
-        // intentamos reanudarlo. Esto debe ocurrir dentro de un evento de usuario (click).
-        if (this.ctx.state === 'suspended') {
-            this.ctx.resume().then(() => {
-                console.log("AudioContext reanudado exitosamente.");
-            });
-        }
+            if (this.ctx.state === 'suspended') {
+                this.ctx.resume().then(() => {
+                    console.log("AudioContext reanudado correctamente.");
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        });
     },
 
     playTone: function(freq, type, duration, vol = 1, slideTo = null) {
         if (!this.ctx) return;
-        
-        // Doble verificación para navegadores estrictos
         if (this.ctx.state === 'suspended') this.ctx.resume();
 
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-        if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, this.ctx.currentTime + duration);
+        
+        osc.type = type; 
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        if (slideTo) {
+            osc.frequency.exponentialRampToValueAtTime(slideTo, this.ctx.currentTime + duration);
+        }
+
         gain.gain.setValueAtTime(0, this.ctx.currentTime);
         gain.gain.linearRampToValueAtTime(vol, this.ctx.currentTime + 0.05);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        
         osc.connect(gain); gain.connect(this.masterGain); osc.start(); osc.stop(this.ctx.currentTime + duration);
     },
-    
-    // --- EFECTOS ---
+
     click: function() { this.playTone(800, 'square', 0.05, 0.1); },
-    error: function() { this.playTone(150, 'sawtooth', 0.4, 0.3, 100); },
+    error: function() { this.playTone(150, 'sawtooth', 0.4, 0.3); },
     success: function() { 
-        // Si se llama éxito y no hay audio, intentar init (fallback)
-        if (!this.ctx) this.init();
-        this.playTone(523.25, 'sine', 0.2, 0.2); 
-        setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); 
+        if (!this.ctx) {
+            this.init().then(() => {
+                this.playTone(523.25, 'sine', 0.2, 0.2); 
+                setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); 
+            });
+        } else {
+            this.playTone(523.25, 'sine', 0.2, 0.2); 
+            setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.2), 100); 
+        }
     },
-    sonar: function() {
-        if (!this.ctx) return;
-        this.playTone(1200, 'sine', 0.3, 0.2);
-        setTimeout(() => this.playTone(600, 'sine', 0.4, 0.05), 150);
+    sonar: function() { 
+        if (!this.ctx) return; 
+        this.playTone(1200, 'sine', 0.3, 0.2); 
+        setTimeout(() => this.playTone(600, 'sine', 0.4, 0.05), 150); 
     },
-    mechanic: function() { this.playTone(100, 'square', 0.1, 0.2, 50); },
-    boost: function() { if(this.ctx) this.playTone(200, 'triangle', 0.4, 0.2, 800); }
+    mechanic: function() { this.playTone(100, 'square', 0.1, 0.2); },
+    boost: function() { if(this.ctx) this.playTone(200, 'triangle', 0.4, 0.2); }
 };
 
 // ================= DATOS DE HISTORIA =================
@@ -91,12 +102,23 @@ const app = {
         { id: 0, name: "ROEDORES (OBSOLETO)", type: "ANIMAL", cost: 0, prod: 2.0, captureCost: 20, icon: "fa-bug" },
         { id: 1, name: "GRANJA PORCINA", type: "ANIMAL", cost: 250, prod: 10.0, captureCost: 80, icon: "fa-piggy-bank" },
         { id: 2, name: "ESTABLO BOVINO", type: "ANIMAL", cost: 850, prod: 35.0, captureCost: 200, icon: "fa-cow" },
-        { id: 3, name: "AVIARIO INDUSTRIAL", type: "ANIMAL", cost: 1300, prod: 100.0, captureCost: 1000, icon: "fa-feather" } 
+        // Tier 3: Meta del Capítulo (Costo aumentado a 6000)
+        { id: 3, name: "AVIARIO INDUSTRIAL", type: "ANIMAL", cost: 6000, prod: 100.0, captureCost: 1000, icon: "fa-feather" } 
     ],
 
     config: { 
-        tickRate: 1000, baseDamage: 2.0, societyDrainBase: 0.8, healCost: 15, healAmount: 20,
-        feedCostSmall: 50, feedCostBig: 200, boostDuration: 5, boostMultProd: 2, boostMultDmg: 3, oldFarmPenalty: 0.4
+        tickRate: 1000, 
+        baseDamage: 2.0, 
+        societyDrainBase: 0.8, 
+        // COSTOS ACTUALIZADOS
+        healCost: 250, 
+        healAmount: 20,
+        feedCostSmall: 300, 
+        feedCostBig: 1000, 
+        boostDuration: 5, 
+        boostMultProd: 2, 
+        boostMultDmg: 3, 
+        oldFarmPenalty: 0.4
     },
 
     state: { 
@@ -155,7 +177,6 @@ const app = {
 
     // --- LOGS & AUDIO FIX ---
     openLog: function(id) {
-        // Intentar sfx click, pero puede fallar si es el primer load
         sfx.click();
         const data = storyData[id];
         if(data) {
@@ -166,18 +187,14 @@ const app = {
     },
 
     closeStory: function() {
-        // 1. INICIALIZAR AUDIO CONTEXT AHORA (Evento de Usuario)
-        sfx.init();
-        
-        // 2. Reproducir sonido de éxito
-        sfx.success();
-        
-        // 3. Cerrar modal y arrancar juego
-        document.getElementById('story-modal').classList.add('hidden');
-        if(!this.state.storyViewed_ch2) {
-            this.state.storyViewed_ch2 = true;
-            this.startGameLoop();
-        }
+        sfx.init().then(() => {
+            sfx.success();
+            document.getElementById('story-modal').classList.add('hidden');
+            if(!this.state.storyViewed_ch2) {
+                this.state.storyViewed_ch2 = true;
+                this.startGameLoop();
+            }
+        });
     },
 
     // --- RESET ---
@@ -231,10 +248,16 @@ const app = {
 
         const currentDrain = this.config.societyDrainBase + (this.state.unlockedTier * 0.1);
         this.state.societyHealth -= currentDrain;
-        this.state.societyHistory.push(this.state.societyHealth);
-        if(this.state.societyHistory.length > 60) this.state.societyHistory.shift();
         
-        if(this.state.societyHealth <= 0) { this.state.societyHealth = 0; this.triggerGameOver(); }
+        this.state.societyHistory.push(this.state.societyHealth);
+        if(this.state.societyHistory.length > 60) { 
+            this.state.societyHistory.shift();
+        }
+        
+        if(this.state.societyHealth <= 0) {
+            this.state.societyHealth = 0;
+            this.triggerGameOver();
+        }
 
         let prod = 0;
         for (let i = this.state.units.length - 1; i >= 0; i--) {
@@ -245,14 +268,26 @@ const app = {
             let currentProd = tier.prod * efficiency;
             let currentDmg = this.config.baseDamage;
 
-            if(u.boostTimer > 0) { currentProd *= this.config.boostMultProd; currentDmg *= this.config.boostMultDmg; u.boostTimer--; }
-            u.hp -= currentDmg; prod += currentProd;
-            if(u.hp <= 0) { this.state.units.splice(i, 1); sfx.error(); }
+            if(u.boostTimer > 0) {
+                currentProd *= this.config.boostMultProd; 
+                currentDmg *= this.config.boostMultDmg;
+                u.boostTimer--;
+            }
+            u.hp -= currentDmg;
+            prod += currentProd;
+
+            if(u.hp <= 0) {
+                this.state.units.splice(i, 1);
+                sfx.error();
+            }
         }
         this.state.water += prod;
         this.updateUI(currentDrain);
         if(!this.dom.views.extraction.classList.contains('hidden')) this.renderUnits();
-        if(!this.dom.views.society.classList.contains('hidden')) this.drawSocietyChart();
+        
+        if(!this.dom.views.society.classList.contains('hidden')) {
+            this.drawSocietyChart();
+        }
     },
 
     buyTier: function(tierId) {
@@ -290,6 +325,7 @@ const app = {
         }
     },
 
+    // REPARAR (Costo actualizado)
     actionHeal: function(id) {
         let u = this.state.units.find(x => x.id === id);
         if(u && this.state.water >= this.config.healCost && u.hp < 100) {
@@ -305,20 +341,23 @@ const app = {
         if(u) { u.boostTimer = this.config.boostDuration; sfx.boost(); this.renderUnits(); }
     },
 
+    // RECICLAR (Modificado: Sin confirmación)
     actionRecycle: function(id) {
         let u = this.state.units.find(x => x.id === id);
         if(!u) return;
+        
         let tier = this.tiers[u.tierId];
         let refund = Math.floor(tier.captureCost / 2);
-        if(confirm(`¿Reciclar? Recuperas +${refund}L`)) {
-            let idx = this.state.units.findIndex(x => x.id === id);
-            this.state.water += refund;
-            this.state.units.splice(idx, 1);
-            sfx.success();
-            this.renderUnits();
-        }
+        
+        // Ejecución inmediata
+        let idx = this.state.units.findIndex(x => x.id === id);
+        this.state.water += refund;
+        this.state.units.splice(idx, 1);
+        sfx.success();
+        this.renderUnits();
     },
 
+    // SOCIEDAD
     feedSociety: function(amount) {
         let cost = amount === 10 ? this.config.feedCostSmall : this.config.feedCostBig;
         if(this.state.water >= cost) {
@@ -417,6 +456,7 @@ const app = {
         this.dom.views[view].classList.remove('hidden');
         this.dom.nav[view].classList.add('active');
         sfx.click();
+        
         if(view === 'society') setTimeout(() => this.drawSocietyChart(), 50);
         if(view === 'farms') this.renderFarms();
         if(view === 'extraction') this.renderUnits();

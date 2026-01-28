@@ -121,18 +121,33 @@ const app = {
         { id: 2, name: "ESTABLO BOVINO", type: "ANIMAL", cost: 850, prod: 35.0, captureCost: 200, icon: "fa-cow" },
         { id: 3, name: "AVIARIO INDUSTRIAL", type: "ANIMAL", cost: 1300, prod: 100.0, captureCost: 300, icon: "fa-feather" },
         { id: 4, name: "PROCESADOR DE BIOMASA", type: "SINTÉTICO", cost: 1900, prod: 250.0, captureCost: 400, icon: "fa-industry" },
-        // Nueva meta
-        { id: 5, name: "GRANJA MIXTA MASIVA", type: "ANIMAL", cost: 2100, prod: 400.0, captureCost: 1500, icon: "fa-warehouse" } 
+        // Nueva meta (Costo aumentado a 8000)
+        { id: 5, name: "GRANJA MIXTA MASIVA", type: "ANIMAL", cost: 8000, prod: 400.0, captureCost: 1500, icon: "fa-warehouse" } 
     ],
 
     config: { 
-        tickRate: 1000, baseDamage: 2.0, societyDrainBase: 1.5, healCost: 15, healAmount: 20, // Drenaje aumentado a 1.5
-        feedCostSmall: 50, feedCostBig: 200, boostDuration: 5, boostMultProd: 2, boostMultDmg: 3, oldFarmPenalty: 0.4
+        tickRate: 1000, 
+        baseDamage: 2.0, 
+        societyDrainBase: 1.5, 
+        // COSTOS ACTUALIZADOS
+        healCost: 400, 
+        healAmount: 20, 
+        feedCostSmall: 500, 
+        feedCostBig: 1500, 
+        boostDuration: 5, 
+        boostMultProd: 2, 
+        boostMultDmg: 3, 
+        oldFarmPenalty: 0.4
     },
 
     state: { 
-        water: 800, // Inicio 800
-        units: [], unlockedTier: 4, societyHealth: 100, isGameOver: false, storyViewed_ch4: false, societyHistory: []
+        water: 800, 
+        units: [], 
+        unlockedTier: 4, 
+        societyHealth: 100, 
+        isGameOver: false, 
+        storyViewed_ch4: false, 
+        societyHistory: []
     },
     
     dom: {},
@@ -162,12 +177,14 @@ const app = {
         }
     },
     closeStory: function() {
-        sfx.init(); sfx.success();
-        document.getElementById('story-modal').classList.add('hidden');
-        if(!this.state.storyViewed_ch4) {
-            this.state.storyViewed_ch4 = true;
-            this.startGameLoop();
-        }
+        sfx.init().then(() => {
+            sfx.success();
+            document.getElementById('story-modal').classList.add('hidden');
+            if(!this.state.storyViewed_ch4) {
+                this.state.storyViewed_ch4 = true;
+                this.startGameLoop();
+            }
+        });
     },
     
     // --- CHART ---
@@ -305,6 +322,7 @@ const app = {
         }
     },
 
+    // REPARAR (Costo actualizado)
     actionHeal: function(id) {
         let u = this.state.units.find(x => x.id === id);
         if(u && this.state.water >= this.config.healCost && u.hp < 100) {
@@ -320,20 +338,23 @@ const app = {
         if(u) { u.boostTimer = this.config.boostDuration; sfx.boost(); this.renderUnits(); }
     },
 
+    // RECICLAR (Modificado: Sin confirmación)
     actionRecycle: function(id) {
         let u = this.state.units.find(x => x.id === id);
         if(!u) return;
+        
         let tier = this.tiers[u.tierId];
         let refund = Math.floor(tier.captureCost / 2);
-        if(confirm(`¿Reciclar? Recuperas +${refund}L`)) {
-            let idx = this.state.units.findIndex(x => x.id === id);
-            this.state.water += refund;
-            this.state.units.splice(idx, 1);
-            sfx.success();
-            this.renderUnits();
-        }
+        
+        // Ejecución inmediata
+        let idx = this.state.units.findIndex(x => x.id === id);
+        this.state.water += refund;
+        this.state.units.splice(idx, 1);
+        sfx.success();
+        this.renderUnits();
     },
 
+    // SOCIEDAD (Costos actualizados)
     feedSociety: function(amount) {
         let cost = amount === 10 ? this.config.feedCostSmall : this.config.feedCostBig;
         if(this.state.water >= cost) {
@@ -458,11 +479,16 @@ const app = {
     },
 
     saveGame: function() { gameManager.saveProgress(this.state); },
+    
     loadGame: function() {
         let d = gameManager.loadProgress();
-        if(d) { this.state = { ...this.state, ...d }; if(this.state.water < 300) this.state.water = 800; } 
+        if(d) { 
+            this.state = { ...this.state, ...d }; 
+            if(this.state.water < 300) this.state.water = 800; 
+        } 
         else { this.state.water = 800; this.state.unlockedTier = 4; }
     },
+    
     hardReset: function() { gameManager.clearProgress(); location.reload(); },
     renderAll: function() { this.updateUI(); this.renderFarms(); this.renderMapInfo(); this.renderUnits(); }
 };

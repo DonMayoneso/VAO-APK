@@ -34,15 +34,11 @@
 
     <div id="cinematic-container" class="hidden">
         <div class="planet-bg"></div>
-        
         <div class="terminal-wrapper" id="terminal-wrapper">
             <div class="crt-screen">
                 <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
                      viewBox="0 0 876.26 1253.81" style="enable-background:new 0 0 876.26 1253.81;" xml:space="preserve">
-                <style type="text/css">
-                    /* Usamos la variable CSS para el color */
-                    .st0{fill: var(--terminal-green);}
-                </style>
+                <style type="text/css">.st0{fill: var(--terminal-green);}</style>
                 <path class="st0" d="M524.55,16.34h-171.05L19.09,765.61l330.85,471.86h175.28l331.94-471.86L524.55,16.34ZM494.36,323.41
                     h-113.47l56.93-136.86,56.54,136.86ZM444.02,1106.35l-247.06-340.74,129.23-310.68h222.47l128.32,310.68-232.99,340.74h.03Z"/>
                 <path class="st0" d="M511.13,564.24c-23.29-9.03-48.83-13.58-76.63-13.58s-52.93,4.52-76.37,13.58
@@ -80,12 +76,44 @@
                 <div class="stat-box"><span>AMENAZAS ELIMINADAS</span><span id="final-asteroids" class="stat-val">0</span></div>
             </div>
             <div class="action-grid">
+                <button class="btn-cta" style="border-color: #f59e0b; color: #f59e0b;" onclick="leaderboard.open()">
+                    <i class="fa-solid fa-trophy"></i> TABLA GLOBAL
+                </button>
                 <button class="btn-cta share-btn" onclick="game.shareLink()">
                     <i class="fa-solid fa-share-nodes"></i> COMPARTIR ENLACE
                 </button>
                 <button class="btn-cta" onclick="game.restartGame()">REINICIAR CICLO</button>
                 <button class="btn-cta vao-btn" onclick="game.goToRepo()">JUEGA COMO VAO</button>
             </div>
+        </div>
+    </div>
+
+    <div id="leaderboard-modal" class="modal-overlay hidden" style="z-index: 2100;">
+        <div class="modal-content final-theme" style="width: 95%; max-width: 500px;">
+            <h2 style="color: #f59e0b; border-bottom: 1px solid #f59e0b; padding-bottom: 10px;">REGISTRO DE SUPERVIVIENTES</h2>
+            
+            <div id="score-form" style="margin-bottom: 20px; border-bottom: 1px dashed #333; padding-bottom: 20px;">
+                <p style="font-size: 0.8rem; margin-bottom: 10px;">REGISTRA TU LEGADO EN LA BASE DE DATOS</p>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="player-name" placeholder="INGRESA TU NOMBRE" maxlength="15" 
+                           style="flex: 1; padding: 10px; background: #111; border: 1px solid #f59e0b; color: #fff; font-family: monospace; text-transform: uppercase;">
+                    <button class="btn-cta" style="width: auto; padding: 10px 20px; font-size: 0.9rem;" onclick="leaderboard.submit()">ENVIAR</button>
+                </div>
+                <p id="form-status" style="font-size: 0.7rem; color: #f59e0b; margin-top: 5px; height: 15px;"></p>
+            </div>
+
+            <div class="leaderboard-list">
+                <div class="lb-header">
+                    <span>#</span>
+                    <span>NOMBRE</span>
+                    <span>AGUA</span>
+                    <span>AST.</span> </div>
+                <div id="lb-content" style="max-height: 250px; overflow-y: auto;">
+                    <p style="padding: 20px; color: #666;">CARGANDO DATOS DEL SERVIDOR...</p>
+                </div>
+            </div>
+
+            <button class="btn-cta" style="margin-top: 20px; border-color: #333; color: #666;" onclick="leaderboard.close()">CERRAR</button>
         </div>
     </div>
 

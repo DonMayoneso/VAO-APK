@@ -161,9 +161,8 @@ const app = {
         { id: 2, name: "ESTABLO BOVINO", type: "ANIMAL", cost: 850, prod: 35.0, captureCost: 200, icon: "fa-cow" },
         { id: 3, name: "AVIARIO INDUSTRIAL", type: "ANIMAL", cost: 1300, prod: 100.0, captureCost: 300, icon: "fa-feather" },
         { id: 4, name: "PROCESADOR BIOMASA", type: "SINTÉTICO", cost: 1900, prod: 250.0, captureCost: 400, icon: "fa-industry" },
-        // Tier 5: Correccionales (Nerfeada la producción para aumentar dificultad)
         { id: 5, name: "CORRECCIONALES BÁSICAS", type: "HUMANO", cost: 2400, prod: 350.0, captureCost: 450, icon: "fa-person-shelter" },
-        // Tier 6: Meta del Capítulo (Costo Masivo)
+        // Tier 6: Meta del Capítulo
         { id: 6, name: "ANCIANATOS Y HOSPITALES", type: "HUMANO", cost: 100000, prod: 2500.0, captureCost: 800, icon: "fa-hospital" }
     ],
 
@@ -172,10 +171,10 @@ const app = {
         tickRate: 1000, 
         baseDamage: 4.0, // Daño alto
         societyDrainBase: 2.5, // Drenaje social muy agresivo
-        healCost: 2000, // Reparar es prohibitivo (es mejor dejar morir y capturar)
+        healCost: 2000, // Reparar es prohibitivo
         healAmount: 20,
-        feedCostSmall: 5000, // Comida pequeña 5k
-        feedCostBig: 10000,  // Comida grande 10k
+        feedCostSmall: 5000, 
+        feedCostBig: 10000,
         boostDuration: 5, 
         boostMultProd: 2, 
         boostMultDmg: 3, 
@@ -183,7 +182,7 @@ const app = {
     },
 
     state: { 
-        water: 1000, // Inicio justo para 2 capturas
+        water: 1000, 
         units: [], 
         unlockedTier: 5, 
         societyHealth: 100, 
@@ -224,13 +223,15 @@ const app = {
     },
 
     closeStory: function() {
-        sfx.init(); sfx.success();
-        document.getElementById('story-modal').classList.add('hidden');
-        
-        // Si estamos iniciando el capítulo, mostrar la advertencia
-        if(!this.state.storyViewed_ch6) {
-            this.openWarning();
-        }
+        sfx.init().then(() => {
+            sfx.success();
+            document.getElementById('story-modal').classList.add('hidden');
+            
+            // Si estamos iniciando el capítulo, mostrar la advertencia
+            if(!this.state.storyViewed_ch6) {
+                this.openWarning();
+            }
+        });
     },
 
     openWarning: function() {
@@ -372,9 +373,10 @@ const app = {
 
     tryCapture: function() {
         let tier = this.tiers[this.state.unlockedTier];
-        // Costo de captura 500L
-        if(this.state.water >= 500) { 
-            this.state.water -= 500;
+        let cost = tier.captureCost; // Usar el costo del tier actual
+        
+        if(this.state.water >= cost) { 
+            this.state.water -= cost;
             const newName = this.generateSerial(tier.type);
             this.state.units.push({ id: Date.now(), tierId: this.state.unlockedTier, name: newName, hp: 100, boostTimer: 0 });
             sfx.success();
@@ -384,7 +386,7 @@ const app = {
         }
     },
 
-    // REPARAR: 2000L
+    // REPARAR
     actionHeal: function(id) { 
         let u = this.state.units.find(x => x.id === id); 
         if(u && this.state.water >= this.config.healCost && u.hp < 100) { 
@@ -395,12 +397,32 @@ const app = {
         } 
     },
     
-    actionBoost: function(id) { let u = this.state.units.find(x => x.id === id); if(u) { u.boostTimer = this.config.boostDuration; sfx.boost(); this.renderUnits(); } },
+    actionBoost: function(id) { 
+        let u = this.state.units.find(x => x.id === id); 
+        if(u) { 
+            u.boostTimer = this.config.boostDuration; 
+            sfx.boost(); 
+            this.renderUnits(); 
+        } 
+    },
     
-    // RECICLAR: 200L
-    actionRecycle: function(id) { let u = this.state.units.find(x => x.id === id); if(!u) return; if(confirm(`¿Reciclar? +200L`)) { let idx = this.state.units.findIndex(x => x.id === id); this.state.water += 200; this.state.units.splice(idx, 1); sfx.success(); this.renderUnits(); } },
+    // RECICLAR (CORREGIDO: Sin confirmación)
+    actionRecycle: function(id) { 
+        let u = this.state.units.find(x => x.id === id); 
+        if(!u) return; 
+        
+        let tier = this.tiers[u.tierId]; 
+        let refund = Math.floor(tier.captureCost / 2); 
+        
+        // Ejecución inmediata
+        let idx = this.state.units.findIndex(x => x.id === id); 
+        this.state.water += refund; 
+        this.state.units.splice(idx, 1); 
+        sfx.success(); 
+        this.renderUnits(); 
+    },
     
-    // SOCIEDAD: COSTOS ELEVADOS
+    // SOCIEDAD
     feedSociety: function(amount) { 
         let cost = amount === 10 ? this.config.feedCostSmall : this.config.feedCostBig; 
         if(this.state.water >= cost) { 
@@ -412,7 +434,7 @@ const app = {
             sfx.error(); 
         } 
     },
-
+    
     updateUI: function(drain = 0) {
         this.dom.totalWater.innerText = Math.floor(this.state.water);
         this.dom.socPercent.innerText = Math.floor(this.state.societyHealth);
@@ -428,6 +450,7 @@ const app = {
         this.state.units.forEach(u => {
             const isBoosted = u.boostTimer > 0;
             const tier = this.tiers[u.tierId];
+            const refund = Math.floor(tier.captureCost / 2);
             let tierGap = this.state.unlockedTier - u.tierId;
             let efficiencyMsg = (tierGap > 0) ? `<small style="color:#ef4444">⚠ OBSOLETO</small>` : '';
 
@@ -445,7 +468,7 @@ const app = {
                     <button class="btn-inline btn-heal" onclick="app.actionHeal(${u.id})"><i class="fa-solid fa-gear"></i> REPARAR (-${this.config.healCost}L)</button>
                     <button class="btn-inline btn-boost ${isBoosted?'active':''}" onclick="app.actionBoost(${u.id})"><i class="fa-solid fa-bolt"></i> BOOST</button>
                 </div>
-                <button class="btn-recycle-wide" onclick="app.actionRecycle(${u.id})"><i class="fa-solid fa-recycle"></i> RECICLAR (+200L)</button>
+                <button class="btn-recycle-wide" onclick="app.actionRecycle(${u.id})"><i class="fa-solid fa-recycle"></i> RECICLAR (+${refund}L)</button>
             </div>`;
         });
         this.dom.lists.units.innerHTML = html;
@@ -459,7 +482,6 @@ const app = {
             let statusClass = isOwned ? 'owned' : (isNext ? 'available' : 'locked');
             let opacity = isNext || isOwned ? 1 : 0.5;
             
-            // Botones Log solo para los tiers con historia
             let logBtn = (storyData[tier.id]) 
                 ? `<button class="btn-log-card" onclick="app.openLog(${tier.id})">LOG <i class="fa-solid fa-file-code"></i></button>`
                 : '';
@@ -487,10 +509,12 @@ const app = {
 
     renderMapInfo: function() {
         let tier = this.tiers[this.state.unlockedTier];
-        this.dom.captureBtn.innerHTML = `[ INICIAR CAPTURA (-500L) ]`;
+        // Asegurar que el costo mostrado coincida con el tier actual
+        let cost = tier.captureCost;
+        this.dom.captureBtn.innerHTML = `[ INICIAR CAPTURA (-${cost}L) ]`;
         this.dom.radarTarget.innerText = tier.type;
         this.dom.scanInfo.innerHTML = `<li>> OBJETIVO: ${tier.name}</li>`;
-        this.dom.captureCost.innerText = 500;
+        this.dom.captureCost.innerText = cost;
     },
 
     navigateTo: function(view) {
@@ -526,12 +550,10 @@ const app = {
 
     saveGame: function() { gameManager.saveProgress(this.state); },
     
-    // Carga con balance de seguridad
     loadGame: function() {
         let d = gameManager.loadProgress();
         if(d) { 
             this.state = { ...this.state, ...d }; 
-            // Si viene con muy poco dinero, se le da el mínimo para capturar 2
             if(this.state.water < 500) this.state.water = 1000; 
         } 
         else { this.state.water = 1000; this.state.unlockedTier = 5; }

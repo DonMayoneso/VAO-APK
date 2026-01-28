@@ -99,20 +99,35 @@ const app = {
         { id: 0, name: "ROEDORES (OBSOLETO)", type: "ANIMAL", cost: 0, prod: 2.0, captureCost: 20, icon: "fa-bug" },
         { id: 1, name: "GRANJA PORCINA", type: "ANIMAL", cost: 250, prod: 10.0, captureCost: 80, icon: "fa-piggy-bank" },
         { id: 2, name: "ESTABLO BOVINO", type: "ANIMAL", cost: 850, prod: 35.0, captureCost: 200, icon: "fa-cow" },
-        // CORRECCIÓN: Costo de captura reducido a 300L
-        { id: 3, name: "AVIARIO INDUSTRIAL", type: "ANIMAL", cost: 1300, prod: 100.0, captureCost: 300, icon: "fa-feather" },
+        // Costo aumentado a 6500 (Siguiente Granja)
+        { id: 3, name: "AVIARIO INDUSTRIAL", type: "ANIMAL", cost: 6500, prod: 100.0, captureCost: 300, icon: "fa-feather" },
         // Meta del Capítulo
-        { id: 4, name: "PROCESADOR DE BIOMASA", type: "SINTÉTICO", cost: 1900, prod: 250.0, captureCost: 5000, icon: "fa-industry" } 
+        { id: 4, name: "PROCESADOR DE BIOMASA", type: "SINTÉTICO", cost: 10000, prod: 250.0, captureCost: 5000, icon: "fa-industry" } 
     ],
 
     config: { 
-        tickRate: 1000, baseDamage: 2.0, societyDrainBase: 1.2, healCost: 15, healAmount: 20,
-        feedCostSmall: 50, feedCostBig: 200, boostDuration: 5, boostMultProd: 2, boostMultDmg: 3, oldFarmPenalty: 0.4
+        tickRate: 1000, 
+        baseDamage: 2.0, 
+        societyDrainBase: 1.2, 
+        // COSTOS ACTUALIZADOS
+        healCost: 350, 
+        healAmount: 20,
+        feedCostSmall: 500, 
+        feedCostBig: 1500, 
+        boostDuration: 5, 
+        boostMultProd: 2, 
+        boostMultDmg: 3, 
+        oldFarmPenalty: 0.4
     },
 
     state: { 
-        water: 600, // CORRECCIÓN: Inicio con 600L
-        units: [], unlockedTier: 3, societyHealth: 100, isGameOver: false, storyViewed_ch3: false, societyHistory: []
+        water: 600, 
+        units: [], 
+        unlockedTier: 3, 
+        societyHealth: 100, 
+        isGameOver: false, 
+        storyViewed_ch3: false, 
+        societyHistory: []
     },
     
     dom: {},
@@ -133,7 +148,6 @@ const app = {
 
     // --- LOGIC ---
     openLog: function(id) {
-        // Intento de sonido al abrir, puede fallar si no hubo interacción previa
         sfx.click();
         const data = storyData[id];
         if(data) {
@@ -142,19 +156,16 @@ const app = {
             document.getElementById('story-modal').classList.remove('hidden');
         }
     },
-
+    
     closeStory: function() {
-        // 1. INICIALIZAR AUDIO AHORA (Evento de Usuario)
-        sfx.init();
-        
-        // 2. Reproducir sonido
-        sfx.success();
-        
-        document.getElementById('story-modal').classList.add('hidden');
-        if(!this.state.storyViewed_ch3) {
-            this.state.storyViewed_ch3 = true;
-            this.startGameLoop();
-        }
+        sfx.init().then(() => {
+            sfx.success();
+            document.getElementById('story-modal').classList.add('hidden');
+            if(!this.state.storyViewed_ch3) {
+                this.state.storyViewed_ch3 = true;
+                this.startGameLoop();
+            }
+        });
     },
     
     // --- CHART ---
@@ -307,20 +318,23 @@ const app = {
         if(u) { u.boostTimer = this.config.boostDuration; sfx.boost(); this.renderUnits(); }
     },
 
+    // RECICLAR (Modificado: Sin confirmación)
     actionRecycle: function(id) {
         let u = this.state.units.find(x => x.id === id);
         if(!u) return;
+        
         let tier = this.tiers[u.tierId];
         let refund = Math.floor(tier.captureCost / 2);
-        if(confirm(`¿Reciclar? Recuperas +${refund}L`)) {
-            let idx = this.state.units.findIndex(x => x.id === id);
-            this.state.water += refund;
-            this.state.units.splice(idx, 1);
-            sfx.success();
-            this.renderUnits();
-        }
+        
+        // Ejecución inmediata
+        let idx = this.state.units.findIndex(x => x.id === id);
+        this.state.water += refund;
+        this.state.units.splice(idx, 1);
+        sfx.success();
+        this.renderUnits();
     },
 
+    // SOCIEDAD
     feedSociety: function(amount) {
         let cost = amount === 10 ? this.config.feedCostSmall : this.config.feedCostBig;
         if(this.state.water >= cost) {
