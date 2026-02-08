@@ -412,6 +412,7 @@ const app = {
         } 
     },
     
+    // RECICLAJE SIN CONFIRMACIÓN
     actionRecycle: function(id) { 
         let u = this.state.units.find(x => x.id === id); 
         if(!u) return; 
@@ -419,7 +420,6 @@ const app = {
         let tier = this.tiers[u.tierId]; 
         let refund = Math.floor(tier.captureCost / 2); 
         
-        // RECICLAJE INSTANTÁNEO SIN CONFIRMACIÓN
         let idx = this.state.units.findIndex(x => x.id === id); 
         this.state.water += refund; 
         this.state.units.splice(idx, 1); 
@@ -453,7 +453,23 @@ const app = {
     executeReset: function() { sfx.error(); gameManager.clearProgress(); localStorage.clear(); window.location.href = "../index.html"; },
     triggerGameOver: function() { this.state.isGameOver = true; sfx.error(); document.getElementById('game-over-modal').classList.remove('hidden'); },
     saveGame: function() { gameManager.saveProgress(this.state); },
-    loadGame: function() { let d = gameManager.loadProgress(); if(d) { this.state = { ...this.state, ...d }; if(this.state.water < 300) this.state.water = 1000; } else { this.state.water = 1000; this.state.unlockedTier = 4; } },
+    
+    // FIX DE CARGA: Fuerza que el tier máximo sea 4 para que aparezca la correccional como "siguiente"
+    loadGame: function() { 
+        let d = gameManager.loadProgress(); 
+        if(d) { 
+            this.state = { ...this.state, ...d }; 
+            // FIX CRÍTICO: Si viene de un capítulo anterior donde ya era 5, lo bajamos a 4
+            // para que el juego detecte que el "Siguiente" es el 5 y muestre el botón de compra/hack.
+            this.state.unlockedTier = 4;
+            
+            if(this.state.water < 300) this.state.water = 1000; 
+        } else { 
+            this.state.water = 1000; 
+            this.state.unlockedTier = 4; 
+        } 
+    },
+    
     hardReset: function() { gameManager.clearProgress(); location.reload(); },
     renderAll: function() { this.updateUI(); this.renderFarms(); this.renderMapInfo(); this.renderUnits(); }
 };
